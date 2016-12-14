@@ -7,6 +7,7 @@
 #include <pcl/visualization/pcl_visualizer.h>
 
 #include <opencv2/core.hpp>
+#include <opencv2/calib3d.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -16,7 +17,7 @@ using namespace pcl;
 
 bool loadImages(string& path, vector<Mat> &images);
 void showImages(vector<Mat>& images);
-void calibrateStereo(vector<Mat>& left, vector<Mat>& right);
+double calibrateStereo(Size& chessboardSize, float chessSize, vector<Mat>& left, vector<Mat>& right);
 
 int main(int argc, char *argv[])
 {
@@ -33,7 +34,10 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    showImages(left);
+    //showImages(left);
+
+    Size size(7,6);
+    calibrateStereo(size, 12, left, right);
 
     return 0;
 }
@@ -71,7 +75,7 @@ void showImages(vector<Mat>& images) {
 double calibrateStereo(Size& chessboardSize, float chessSize, vector<Mat>& left, vector<Mat>& right) {
     int leftSize  = left .size();
     int rightSize = right.size();
-    if(leftSize == 0; || rightSize == 0) {
+    if(leftSize == 0 || rightSize == 0) {
         cerr << "Cannot calibrate cameras with an empty set of images!" << endl;
         return DBL_MAX;
     }
@@ -81,13 +85,15 @@ double calibrateStereo(Size& chessboardSize, float chessSize, vector<Mat>& left,
                 "The exceeding images will be discarded." << endl;
     }
 
+    Size patternSize(chessboardSize.width-1,chessboardSize.height-1);
     int size = leftSize < rightSize ? leftSize : rightSize;
 
     // build pattern vector...
-    Mat pattern = Mat(chessboardSize.x-1,chessboardSize.y-1,CV_32FC3);
-    for(int i = 0; i < chessboardSize.y - 1; ++i) {
-        for(int j = 0; j < chessboardSize.x - 1; ++j) {
-            pattern.at(i,j) = Vec3f(chessSize*i,chessSize*j,0);
+    cout << "Building pattern..." << endl;
+    Mat pattern = Mat(patternSize,CV_32FC3);
+    for(int i = 0; i < patternSize.height; ++i) {
+        for(int j = 0; j < patternSize.width; ++j) {
+            pattern.at<Vec3f>(i,j) = Vec3f(chessSize*i,chessSize*j,0);
         }
     }
 
@@ -96,9 +102,32 @@ double calibrateStereo(Size& chessboardSize, float chessSize, vector<Mat>& left,
         objectPoints[i] = pattern;
     }
 
-    // find chessboard corners...
-    cv::findChessboardCorners()
+    cout << "Pattern built" << endl;
 
+    // find chessboard corners...
+
+    cout << "Looking for left corners..." << endl;
+    vector<vector<Vec2f> > leftCorners;
+    for(int i = 0; i < size; ++i) {
+        vector<Vec2f> corners(patternSize.width*patternSize.height);        //TODO: if findChessboradCorners returns false
+        findChessboardCorners(left[i],patternSize, corners);                //      should do something like ramoving the image
+        leftCorners.push_back(corners);                                     //      from the dataset
+    }
+
+    cout << "Looking for right corners..." << endl;
+    vector<vector<Vec2f> > rightCorners;
+    for(int i = 0; i < size; ++i) {
+        vector<Vec2f> corners(patternSize.width*patternSize.height);
+        findChessboardCorners(right[i],patternSize, corners);
+        rightCorners.push_back(corners);
+    }
+
+    cout << "Drawing corners..." << endl;
+    drawChessboardCorners(left[0],patternSize,leftCorners[0],true);
+    namedWindow("prova", WINDOW_NORMAL);
+    imshow("prova",left[0]);
+
+    waitKey(0);
     // stereoCalibrate
-    stereoCalibrate(InputArrayOfArrays objectPoints, left, right, InputOutputArray cameraMatrix1, InputOutputArray distCoeffs1, InputOutputArray cameraMatrix2, InputOutputArray distCoeffs2, Size imageSize, OutputArray R, OutputArray T, OutputArray E, OutputArray F, TermCriteria criteria=TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 1e-6), int flags=CALIB_FIX_INTRINSIC )
+    //stereoCalibrate(InputArrayOfArrays objectPoints, leftCorners, rightCorners, InputOutputArray cameraMatrix1, InputOutputArray distCoeffs1, InputOutputArray cameraMatrix2, InputOutputArray distCoeffs2, Size imageSize, OutputArray R, OutputArray T, OutputArray E, OutputArray F, TermCriteria criteria=TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 1e-6), int flags=CALIB_FIX_INTRINSIC )
 }

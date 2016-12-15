@@ -1,4 +1,3 @@
-#include <iostream>
 #include <float.h>
 #include <boost/lexical_cast.hpp>
 
@@ -6,10 +5,11 @@
 #include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-#include <opencv2/core.hpp>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui/highgui.hpp>
+
+#include "utils.hpp"
 
 using namespace std;
 using namespace cv;
@@ -18,59 +18,6 @@ using namespace pcl;
 bool loadImages(string& path, vector<Mat> &images);
 void showImages(vector<Mat>& images);
 double calibrateStereo(Size& chessboardSize, float chessSize, vector<Mat>& left, vector<Mat>& right);
-
-
-void print(Point2f& point) {
-    cout << "(" << point.x << "," << point.y << ")";
-    return;
-}
-
-void print(Point3f& point) {
-    cout << "(" << point.x << "," << point.y << "," << point.z << ")";
-    return;
-}
-
-void print(vector<Point3f>& vec) {
-    for(int i = 0; i < vec.size(); ++i) {
-        print(vec[i]);
-        cout << " , ";
-    }
-    cout << endl;
-
-    return;
-}
-
-void print(vector<Point2f>& vec) {
-    for(int i = 0; i < vec.size(); ++i) {
-        print(vec[i]);
-        cout << " , ";
-    }
-    cout << endl;
-
-    return;
-}
-
-void print(vector<vector<Point3f> >& vec) {
-    for(int i = 0; i < vec.size(); ++i) {
-        print(vec[i]);
-        cout << " , ";
-    }
-    cout << endl;
-
-    return;
-}
-
-void print(vector<vector<Point2f> >& vec) {
-    for(int i = 0; i < vec.size(); ++i) {
-        print(vec[i]);
-        cout << " , ";
-    }
-    cout << endl;
-
-    return;
-}
-
-
 
 int main(int argc, char *argv[])
 {

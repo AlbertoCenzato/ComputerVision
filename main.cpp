@@ -19,6 +19,59 @@ bool loadImages(string& path, vector<Mat> &images);
 void showImages(vector<Mat>& images);
 double calibrateStereo(Size& chessboardSize, float chessSize, vector<Mat>& left, vector<Mat>& right);
 
+
+void print(Point2f& point) {
+    cout << "(" << point.x << "," << point.y << ")";
+    return;
+}
+
+void print(Point3f& point) {
+    cout << "(" << point.x << "," << point.y << "," << point.z << ")";
+    return;
+}
+
+void print(vector<Point3f>& vec) {
+    for(int i = 0; i < vec.size(); ++i) {
+        print(vec[i]);
+        cout << " , ";
+    }
+    cout << endl;
+
+    return;
+}
+
+void print(vector<Point2f>& vec) {
+    for(int i = 0; i < vec.size(); ++i) {
+        print(vec[i]);
+        cout << " , ";
+    }
+    cout << endl;
+
+    return;
+}
+
+void print(vector<vector<Point3f> >& vec) {
+    for(int i = 0; i < vec.size(); ++i) {
+        print(vec[i]);
+        cout << " , ";
+    }
+    cout << endl;
+
+    return;
+}
+
+void print(vector<vector<Point2f> >& vec) {
+    for(int i = 0; i < vec.size(); ++i) {
+        print(vec[i]);
+        cout << " , ";
+    }
+    cout << endl;
+
+    return;
+}
+
+
+
 int main(int argc, char *argv[])
 {
     cout << "Loading images..." << endl;
@@ -49,11 +102,10 @@ bool loadImages(string& path, vector<Mat> &images) {
 
     while(true) {
         Mat img;
-        capture >> img;
-        if(img.empty())
+        if(!capture.grab())
             break;
-        else
-            images.push_back(img);
+        capture.retrieve(img);
+        images.push_back(img);
     }
 
     return true;
@@ -93,8 +145,10 @@ double calibrateStereo(Size& chessboardSize, float chessSize, vector<Mat>& left,
     vector<Point3f> pattern(patternSize.height*patternSize.width);
     for(int i = 0; i < patternSize.height; ++i) {
         for(int j = 0; j < patternSize.width; ++j) {
-            pattern.push_back(Point3f(chessSize*i,chessSize*j,0));
+            pattern[j] = Point3f(chessSize*i,chessSize*j,0);
         }
+        cout << "Row " << i << ":\n" << endl;
+        print(pattern);
     }
 
     vector<vector<Point3f> > objectPoints(size);
@@ -102,37 +156,50 @@ double calibrateStereo(Size& chessboardSize, float chessSize, vector<Mat>& left,
         objectPoints[i] = pattern;
     }
 
-    cout << "Pattern built" << endl;
+    // print(objectPoints);
+    //cout << "objectPoints len: " << objectPoints.size() << endl;
 
     // find chessboard corners...
 
     cout << "Looking for left corners..." << endl;
-    vector<vector<Vec2f> > leftCorners;
+    vector<vector<Point2f> > leftCorners(0);
     for(int i = 0; i < size; ++i) {
-        vector<Vec2f> corners(patternSize.width*patternSize.height);        //TODO: if findChessboradCorners returns false
+        vector<Point2f> corners(patternSize.width*patternSize.height);        //TODO: if findChessboradCorners returns false
         findChessboardCorners(left[i],patternSize, corners);                //      should do something like ramoving the image
         leftCorners.push_back(corners);                                     //      from the dataset
     }
 
-    cout << "Looking for right corners..." << endl;
-    vector<vector<Vec2f> > rightCorners;
+    //print(leftCorners);
+    //cout << "leftCorners len: " << leftCorners.size() << endl;
+
+    cout << "\nLooking for right corners..." << endl;
+    vector<vector<Point2f> > rightCorners(0);
     for(int i = 0; i < size; ++i) {
-        vector<Vec2f> corners(patternSize.width*patternSize.height);
+        vector<Point2f> corners(patternSize.width*patternSize.height);
         findChessboardCorners(right[i],patternSize, corners);
         rightCorners.push_back(corners);
     }
 
-    cout << "Drawing corners..." << endl;
-    drawChessboardCorners(left[0],patternSize,leftCorners[0],true);
-    namedWindow("prova", WINDOW_NORMAL);
-    imshow("prova",left[0]);
+    //print(rightCorners);
+    //cout << "rightCorners len: " << rightCorners.size() << endl;
 
-    waitKey(0);
+    // calibrate left camera
+    /*
+    cout << "\nCalibrating left camera..." << endl;
+    Mat intrinsicLeft, distLeft, rvecs, tvecs;
+    double error = calibrateCamera(objectPoints, leftCorners, left[0].size(), intrinsicLeft, distLeft, rvecs, tvecs);
+*/
+
     // stereoCalibrate
-    Mat cameraMatrix1, distCoeffs1, cameraMatrix2, distCoeffs2;
+    cout << "Calibrating stereo cameras..." << endl;
+    Mat cameraMatrix1 = Mat::eye(3, 3, CV_64F);
+    Mat cameraMatrix2 = Mat::eye(3, 3, CV_64F);
+    Mat distCoeffs1, distCoeffs2;
     Mat R, T, E, F;
     double error = stereoCalibrate(objectPoints, leftCorners, rightCorners,
-                                   cameraMatrix1, distCoeffs1, cameraMatrix2, distCoeffs2, left[0].size(), R, T, E, F);
+                                   cameraMatrix1, distCoeffs1, cameraMatrix2, distCoeffs2, left[0].size(),
+                                   R, T, E, F,  CV_CALIB_SAME_FOCAL_LENGTH | CV_CALIB_ZERO_TANGENT_DIST);
 
     return error;
 }
+

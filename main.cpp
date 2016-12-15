@@ -21,7 +21,7 @@ double calibrateStereo(Size& chessboardSize, float chessSize, vector<Mat>& left,
 
 int main(int argc, char *argv[])
 {
-    cout << "Hello World!" << endl;
+    cout << "Loading images..." << endl;
 
     string pathLeft  = "/home/alberto/Downloads/dataset_kinect_stereo(1)/left/image_%04d.png";
     string pathRight = "/home/alberto/Downloads/dataset_kinect_stereo(1)/right/image_%04d.png";
@@ -33,8 +33,6 @@ int main(int argc, char *argv[])
         cout << "Error loading images!" << endl;
         return 0;
     }
-
-    //showImages(left);
 
     Size size(7,6);
     calibrateStereo(size, 12, left, right);
@@ -88,16 +86,18 @@ double calibrateStereo(Size& chessboardSize, float chessSize, vector<Mat>& left,
     Size patternSize(chessboardSize.width-1,chessboardSize.height-1);
     int size = leftSize < rightSize ? leftSize : rightSize;
 
+    //TODO (?): check if images are of different sizes?
+
     // build pattern vector...
     cout << "Building pattern..." << endl;
-    Mat pattern = Mat(patternSize,CV_32FC3);
+    vector<Point3f> pattern(patternSize.height*patternSize.width);
     for(int i = 0; i < patternSize.height; ++i) {
         for(int j = 0; j < patternSize.width; ++j) {
-            pattern.at<Vec3f>(i,j) = Vec3f(chessSize*i,chessSize*j,0);
+            pattern.push_back(Point3f(chessSize*i,chessSize*j,0));
         }
     }
 
-    vector<Mat> objectPoints(size);
+    vector<vector<Point3f> > objectPoints(size);
     for(int i = 0; i < size; ++i) {
         objectPoints[i] = pattern;
     }
@@ -129,5 +129,10 @@ double calibrateStereo(Size& chessboardSize, float chessSize, vector<Mat>& left,
 
     waitKey(0);
     // stereoCalibrate
-    //stereoCalibrate(InputArrayOfArrays objectPoints, leftCorners, rightCorners, InputOutputArray cameraMatrix1, InputOutputArray distCoeffs1, InputOutputArray cameraMatrix2, InputOutputArray distCoeffs2, Size imageSize, OutputArray R, OutputArray T, OutputArray E, OutputArray F, TermCriteria criteria=TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 1e-6), int flags=CALIB_FIX_INTRINSIC )
+    Mat cameraMatrix1, distCoeffs1, cameraMatrix2, distCoeffs2;
+    Mat R, T, E, F;
+    double error = stereoCalibrate(objectPoints, leftCorners, rightCorners,
+                                   cameraMatrix1, distCoeffs1, cameraMatrix2, distCoeffs2, left[0].size(), R, T, E, F);
+
+    return error;
 }

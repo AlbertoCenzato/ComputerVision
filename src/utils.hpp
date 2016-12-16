@@ -1,8 +1,7 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
 
-#include <iostream>
-#include <opencv2/core.hpp>
+#include "generalincludes.hpp"
 
 using namespace std;
 using namespace cv;

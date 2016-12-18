@@ -18,20 +18,23 @@ using namespace pcl;
 Ptr<StereoSGBM> matcher;
 int minDisparities = 0, numDisparities = 144, blockSize = 9;
 int p1 = 100, p2 = 3000, disp12MaxDiff, preFilterCap = 4, uniquenessRatio, speckleWindowSize, speckleRange;
+const string DISPARITY_WINDOW = "Disparity";
+const string IMAGE3D_WINDOW = "3D image";
 
 void on_trackbar(int, void*) {
+
     if(numDisparities%16 != 0)
         numDisparities += 16 - numDisparities%16;
     if(blockSize%2 == 0)
         ++blockSize;
 
-    setTrackbarPos("Num disparities", "Disparity", numDisparities);
-    setTrackbarPos("Block size", "Disparity", blockSize);
-    setTrackbarPos("P1", "Disparity", p1);
-    setTrackbarPos("P2", "Disparity", p2);
-    setTrackbarPos("PreFilterCap", "Disparity", preFilterCap);
+    setTrackbarPos("Num disparities", DISPARITY_WINDOW, numDisparities);
+    setTrackbarPos("Block size",      DISPARITY_WINDOW, blockSize);
+    setTrackbarPos("P1",              DISPARITY_WINDOW, p1);
+    setTrackbarPos("P2",              DISPARITY_WINDOW, p2);
+    setTrackbarPos("PreFilterCap",    DISPARITY_WINDOW, preFilterCap);
+
     matcher = StereoSGBM::create(minDisparities,numDisparities, blockSize);
-    //matcher->setPreFilterSize(5);
     matcher->setPreFilterCap(preFilterCap);
     matcher->setSpeckleRange(2);
     matcher->setSpeckleWindowSize(150);
@@ -41,13 +44,17 @@ void on_trackbar(int, void*) {
     matcher->setP2(p2);
 }
 
-DepthComputer::DepthComputer(const string& fileName) {
+DepthComputer::DepthComputer(const string& fileName, bool tuneParams) {
+    cout << "Reading calibration params..." << endl;
     readCalibration(fileName);
+    this->tuneParams = tuneParams;
 }
 
-DepthComputer::DepthComputer(const StereoCalibrator& calibrator) {
+DepthComputer::DepthComputer(const StereoCalibrator& calibrator, bool tuneParams) {
     cout << "Reading calibration params..." << endl;
     readCalibration(calibrator);
+    this->tuneParams = tuneParams;
+    /*
     cout << "CameraMatrix1:\n" << cameraMatrix1 << endl;
     cout << "DistCoeffs1:\n"   << distCoeffs1   << endl;
     cout << "CameraMatrix2:\n" << cameraMatrix2 << endl;
@@ -57,10 +64,10 @@ DepthComputer::DepthComputer(const StereoCalibrator& calibrator) {
     cout << "P1:\n" << P1 << endl;
     cout << "P2:\n" << P2 << endl;
     cout << "Q:\n" << Q << endl;
-
+    */
 }
 
-void DepthComputer::compute(const Mat left, const Mat right, PointCloud<PointXYZ>::Ptr& cloud) {
+void DepthComputer::compute(const Mat left, const Mat right, PointCloud<PointXYZRGB>::Ptr cloud) {
     cout << "Computing rectification maps..." << endl;
     if (left.empty()) {
         cout << "Empty image!" << endl;
@@ -74,53 +81,16 @@ void DepthComputer::compute(const Mat left, const Mat right, PointCloud<PointXYZ
     remap(left, rectLeft, leftMap1, leftMap2,  INTER_LINEAR, cv::BORDER_CONSTANT, Scalar(0, 0, 0));
     remap(right,rectRight,rightMap1,rightMap2, INTER_LINEAR, cv::BORDER_CONSTANT, Scalar(0, 0, 0));
 
-    namedWindow("Left", WINDOW_NORMAL);
+    namedWindow("Left",  WINDOW_NORMAL);
     namedWindow("Right", WINDOW_NORMAL);
     imshow("Left",  rectLeft);
     imshow("Right", rectRight);
 
-    waitKey(0);
-
-
-    cvtColor(rectLeft,  rectLeft,  CV_BGR2GRAY);
-    cvtColor(rectRight, rectRight, CV_BGR2GRAY);
-
-    Mat disparity;
-    namedWindow("Disparity", WINDOW_NORMAL);
-
-
-    createTrackbar("Min disparities", "Disparity", &minDisparities, 1024, on_trackbar);
-    createTrackbar("Num disparities", "Disparity", &numDisparities, 1024, on_trackbar);
-    createTrackbar("Block size", "Disparity", &blockSize, 41, on_trackbar);
-    createTrackbar("P1", "Disparity", &p1, 3000, on_trackbar);
-    createTrackbar("P2", "Disparity", &p2, 3000, on_trackbar);
-    createTrackbar("PreFilterCap", "Disparity", &preFilterCap, 500, on_trackbar);
-    //createTrackbar("Block size", "Disparity", &blockSize, 41, on_trackbar);
-    //createTrackbar("Block size", "Disparity", &blockSize, 41, on_trackbar);
-
-
-   // numDisparities = (rectLeft.cols/8 + 15) & -16;
+    Mat grayRectLeft, grayRectRight;
+    cvtColor(rectLeft,  grayRectLeft,  CV_BGR2GRAY);
+    cvtColor(rectRight, grayRectRight, CV_BGR2GRAY);
 
     matcher = StereoSGBM::create(minDisparities,numDisparities, blockSize);
-    //auto wls_filter = createDisparity
-
-    /*
-    matcher->setPreFilterCap(63);
-    int sgbmWinSize = 3;
-    matcher->setBlockSize(sgbmWinSize);
-
-    int cn = 1;
-
-    matcher->setP1(8*cn*sgbmWinSize*sgbmWinSize);
-    matcher->setP2(32*cn*sgbmWinSize*sgbmWinSize);
-    matcher->setMinDisparity(40);
-    matcher->setNumDisparities(numDisparities);
-    matcher->setUniquenessRatio(10);
-    matcher->setSpeckleWindowSize(100);
-    matcher->setSpeckleRange(32);
-    matcher->setDisp12MaxDiff(1);
-    */
-
     matcher->setPreFilterCap(preFilterCap);
     matcher->setSpeckleRange(2);
     matcher->setSpeckleWindowSize(150);
@@ -129,25 +99,36 @@ void DepthComputer::compute(const Mat left, const Mat right, PointCloud<PointXYZ
     matcher->setP1(p1);
     matcher->setP2(p2);
 
-    namedWindow("3D image", WINDOW_NORMAL);
+    Mat disparity, image3d;
+    namedWindow(DISPARITY_WINDOW, WINDOW_NORMAL);
+    namedWindow(IMAGE3D_WINDOW,  WINDOW_NORMAL);
 
-    //while (true) {
+    if(tuneParams) {
+        createTrackbar("Min disparities", DISPARITY_WINDOW, &minDisparities, 1024, on_trackbar);
+        createTrackbar("Num disparities", DISPARITY_WINDOW, &numDisparities, 1024, on_trackbar);
+        createTrackbar("Block size",      DISPARITY_WINDOW, &blockSize,      41,   on_trackbar);
+        createTrackbar("P1",              DISPARITY_WINDOW, &p1,             3000, on_trackbar);
+        createTrackbar("P2",              DISPARITY_WINDOW, &p2,             3000, on_trackbar);
+        createTrackbar("PreFilterCap",    DISPARITY_WINDOW, &preFilterCap,   500,  on_trackbar);
+    }
 
-        matcher->compute(rectLeft,rectRight,disparity);
-
-        Mat image3d;
-
-        reprojectImageTo3D(disparity, image3d, Q, true);
-        matToPointCloud(image3d, cloud);
-
-        imshow("3D image", image3d);
+    char ch = 1;
+    cout << "Press q to continue." << endl;
+    do {
+        matcher->compute(grayRectLeft,grayRectRight,disparity);
 
         normalize(disparity, disparity, 0, 255, CV_MINMAX, CV_8U);
+        reprojectImageTo3D(disparity, image3d, Q, false);
+        matToPointCloud(rectLeft, image3d, cloud);
+        cout << cloud << endl;                                      // TODO: remove line
 
-        imshow("Disparity",  disparity);
-        waitKey(100);
+        imshow(DISPARITY_WINDOW, disparity);
+        imshow(IMAGE3D_WINDOW,   image3d);
+        ch = tuneParams ? waitKey(100) : 81;
 
-   // }
+    } while (ch != 81 && ch != 113);
+
+    waitKey(100);
 
     //return leftMap1;
 }
@@ -186,15 +167,27 @@ bool DepthComputer::readCalibration(const StereoCalibrator& calibrator) {
     return true;
 }
 
-void DepthComputer::matToPointCloud(const Mat& mat, pcl::PointCloud<pcl::PointXYZ>::Ptr cloud) {
+void DepthComputer::matToPointCloud(const Mat& image, const Mat& depthMap, PointCloud<PointXYZRGB>::Ptr cloud) {
 
     cloud->clear();
-    for(int i = 0; i < mat.rows; ++i) {
-        for(int j = 0; j < mat.cols; ++j) {
-            Vec3d point = mat.at<Vec3d>(i,j);
-            pcl::PointXYZ p(point[0],point[1],point[2]);
-            cloud->push_back(p);
+    PointXYZRGB p;
+    cloud->points.resize(depthMap.cols * depthMap.rows);
+    cloud->width  = depthMap.cols*depthMap.rows;
+    cloud->height = 1;
+    int count = 0;
+    for(int i = 0; i < depthMap.rows; ++i) {
+        for(int j = 0; j < depthMap.cols; ++j, ++count) {
+            Vec3b color    = image.   at<Vec3b>(i,j);
+            Vec3f position = depthMap.at<Vec3f>(i,j);
+            p.r = color[2];
+            p.g = color[1];
+            p.b = color[0];
+            p.x = position[0]/100;
+            p.y = position[1]/100;
+            p.z = position[2]/100;
+            cloud->at(count) = p;
         }
     }
-
 }
+
+

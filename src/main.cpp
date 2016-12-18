@@ -1,9 +1,14 @@
 #include <float.h>
 #include <boost/lexical_cast.hpp>
 
-#include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
+#include <pcl/features/normal_3d.h>	    // for computing normals
+#include <pcl/io/pcd_io.h> 		    // for reading the point cloud
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/features/normal_3d_omp.h>
+#include <pcl/filters/filter.h>		// for removing NaN from the point cloud
+
 
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -26,11 +31,11 @@ const String KEYS =
     "{left           |       | path to left calibration image sequence expressed as /path/to/file/filename%0#d.jpg\n"
                               "where # is the number of digits used in filename}"
     "{right          |       | path to right calibration image sequence expressed as /path/to/file/filename%0#d.jpg\n"
-                              "where # is the number of digits used in filename}";
+                              "where # is the number of digits used in filename}"
+    "{tune           |       | if set allows to tune the algorithm parameters during execution }";
 
 void showImages(vector<Mat>& images);
 void calibrateCameras(ImageLoader &loader, const CommandLineParser &parser);
-
 
 int main(int argc, char *argv[])
 {
@@ -58,20 +63,36 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    PointCloud<PointXYZ>::Ptr cloud(new PointCloud<PointXYZ>);
-    visualization::PCLVisualizer viewer("PCL Viewer");
-    viewer.setBackgroundColor (0.0, 0.0, 0.5);
-    viewer.addCoordinateSystem (0.1);
-    viewer.initCameraParameters ();
+    PointCloud<PointXYZRGB>::Ptr cloud(new PointCloud<PointXYZRGB>);
 
-    DepthComputer dptComputer = DepthComputer(CALIB_FILE);
+    bool tuneParams = parser.has("tune");
+    DepthComputer dptComputer = DepthComputer(CALIB_FILE, tuneParams);
     dptComputer.compute(imgLeft, imgRight, cloud);
 
-    viewer.addPointCloud<PointXYZ> (cloud, "input_cloud");
-    while (!viewer.wasStopped ())
-        {
-            viewer.spin ();
-        }
+    for(int i = 0; i < cloud->size(); ++i) {
+        cout << cloud->at(i);
+    }
+
+
+    visualization::PCLVisualizer viewer("PCL Viewer");
+    viewer.setBackgroundColor  (0.0, 0.0, 0.5);
+    viewer.addCoordinateSystem (0.1);
+    viewer.initCameraParameters();
+    visualization::PointCloudColorHandlerRGBField<PointXYZRGB> rgb(cloud);
+    viewer.addPointCloud<PointXYZRGB> (cloud, rgb, "input_cloud");
+
+    /*
+    visualization::CloudViewer viewer("Viewer");
+    //viewer.setBackgroundColor (1.0, 1.0, 1.0);
+    //viewer.initCameraParameters ();
+    //visualization::PointCloudColorHandlerRGBField<PointXYZRGB> rgb(cloud);
+    //viewer.addPointCloud<PointXYZRGB> (cloud, rgb, "input_cloud");
+    */
+
+    //viewer.showCloud(cloud);
+    while (!viewer.wasStopped()) {
+        viewer.spin();
+    }
 
     return 0;
 }

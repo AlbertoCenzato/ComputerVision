@@ -10,39 +10,13 @@
 #include <pcl/features/fpfh_omp.h>		// for computing FPFH with multi-core implementation
 #include <pcl/filters/filter.h>		// for removing NaN from the point cloud
 
+#include <math.h>
 
 using namespace std;
 using namespace cv;
 using namespace pcl;
 
-Ptr<StereoSGBM> matcher;
-int minDisparities = 0, numDisparities = 144, blockSize = 9;
-int p1 = 100, p2 = 3000, disp12MaxDiff, preFilterCap = 4, uniquenessRatio, speckleWindowSize, speckleRange;
-const string DISPARITY_WINDOW = "Disparity";
-const string IMAGE3D_WINDOW = "3D image";
-
-void on_trackbar(int, void*) {
-
-    if(numDisparities%16 != 0)
-        numDisparities += 16 - numDisparities%16;
-    if(blockSize%2 == 0)
-        ++blockSize;
-
-    setTrackbarPos("Num disparities", DISPARITY_WINDOW, numDisparities);
-    setTrackbarPos("Block size",      DISPARITY_WINDOW, blockSize);
-    setTrackbarPos("P1",              DISPARITY_WINDOW, p1);
-    setTrackbarPos("P2",              DISPARITY_WINDOW, p2);
-    setTrackbarPos("PreFilterCap",    DISPARITY_WINDOW, preFilterCap);
-
-    matcher = StereoSGBM::create(minDisparities,numDisparities, blockSize);
-    matcher->setPreFilterCap(preFilterCap);
-    matcher->setSpeckleRange(2);
-    matcher->setSpeckleWindowSize(150);
-    matcher->setUniquenessRatio(1);
-    matcher->setDisp12MaxDiff(10);
-    matcher->setP1(p1);
-    matcher->setP2(p2);
-}
+// ----- Constructors -----
 
 DepthComputer::DepthComputer(const string& fileName, bool tuneParams) {
     cout << "Reading calibration params..." << endl;
@@ -54,18 +28,10 @@ DepthComputer::DepthComputer(const StereoCalibrator& calibrator, bool tuneParams
     cout << "Reading calibration params..." << endl;
     readCalibration(calibrator);
     this->tuneParams = tuneParams;
-    /*
-    cout << "CameraMatrix1:\n" << cameraMatrix1 << endl;
-    cout << "DistCoeffs1:\n"   << distCoeffs1   << endl;
-    cout << "CameraMatrix2:\n" << cameraMatrix2 << endl;
-    cout << "DistCoeffs2:\n"   << distCoeffs2   << endl;
-    cout << "R1:\n" << R1 << endl;
-    cout << "R2:\n" << R2 << endl;
-    cout << "P1:\n" << P1 << endl;
-    cout << "P2:\n" << P2 << endl;
-    cout << "Q:\n" << Q << endl;
-    */
 }
+
+
+// ----- Public member functions -----
 
 void DepthComputer::compute(const Mat left, const Mat right, PointCloud<PointXYZRGB>::Ptr cloud) {
     cout << "Computing rectification maps..." << endl;
@@ -99,6 +65,8 @@ void DepthComputer::compute(const Mat left, const Mat right, PointCloud<PointXYZ
     matcher->setP1(p1);
     matcher->setP2(p2);
 
+    //ximgproc::createDisparityWLSFilter(matcher);
+
     Mat disparity, image3d;
     namedWindow(DISPARITY_WINDOW, WINDOW_NORMAL);
     namedWindow(IMAGE3D_WINDOW,  WINDOW_NORMAL);
@@ -120,7 +88,6 @@ void DepthComputer::compute(const Mat left, const Mat right, PointCloud<PointXYZ
         normalize(disparity, disparity, 0, 255, CV_MINMAX, CV_8U);
         reprojectImageTo3D(disparity, image3d, Q, false);
         matToPointCloud(rectLeft, image3d, cloud);
-        cout << cloud << endl;                                      // TODO: remove line
 
         imshow(DISPARITY_WINDOW, disparity);
         imshow(IMAGE3D_WINDOW,   image3d);
@@ -177,17 +144,46 @@ void DepthComputer::matToPointCloud(const Mat& image, const Mat& depthMap, Point
     int count = 0;
     for(int i = 0; i < depthMap.rows; ++i) {
         for(int j = 0; j < depthMap.cols; ++j, ++count) {
-            Vec3b color    = image.   at<Vec3b>(i,j);
             Vec3f position = depthMap.at<Vec3f>(i,j);
+            if(isinf(position[2]) || isinf(position[1]) || isinf(position[0]) ||
+               isnan(position[2]) || isnan(position[1]) || isnan(position[0]))
+                continue;
+
+            Vec3b color    = image.   at<Vec3b>(i,j);
             p.r = color[2];
             p.g = color[1];
             p.b = color[0];
-            p.x = position[0]/100;
-            p.y = position[1]/100;
-            p.z = position[2]/100;
+            p.x = position[0];
+            p.y = position[1];
+            p.z = position[2];
             cloud->at(count) = p;
         }
     }
 }
 
+
+// ----- Private member functions -----
+
+void DepthComputer::on_trackbar(int, void*) {
+
+    if(numDisparities%16 != 0)
+        numDisparities += 16 - numDisparities%16;
+    if(blockSize%2 == 0)
+        ++blockSize;
+
+    setTrackbarPos("Num disparities", DISPARITY_WINDOW, numDisparities);
+    setTrackbarPos("Block size",      DISPARITY_WINDOW, blockSize);
+    setTrackbarPos("P1",              DISPARITY_WINDOW, p1);
+    setTrackbarPos("P2",              DISPARITY_WINDOW, p2);
+    setTrackbarPos("PreFilterCap",    DISPARITY_WINDOW, preFilterCap);
+
+    matcher = StereoSGBM::create(minDisparities,numDisparities, blockSize);
+    matcher->setPreFilterCap(preFilterCap);
+    matcher->setSpeckleRange(2);
+    matcher->setSpeckleWindowSize(150);
+    matcher->setUniquenessRatio(1);
+    matcher->setDisp12MaxDiff(10);
+    matcher->setP1(p1);
+    matcher->setP2(p2);
+}
 

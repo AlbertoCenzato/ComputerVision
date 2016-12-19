@@ -60,7 +60,9 @@ int main(int argc, char *argv[])
 
     if(!loader.getImage(pathLeft, imgLeft) || !loader.getImage(pathRight,imgRight)) {
         cerr << "Empty images!" << endl;
-        return -1;
+        cout << "Maybe you mistyped an argument." << endl;
+        parser.printMessage();
+        return 0;
     }
 
     PointCloud<PointXYZRGB>::Ptr cloud(new PointCloud<PointXYZRGB>);
@@ -69,10 +71,11 @@ int main(int argc, char *argv[])
     DepthComputer dptComputer = DepthComputer(CALIB_FILE, tuneParams);
     dptComputer.compute(imgLeft, imgRight, cloud);
 
+    /*
     for(int i = 0; i < cloud->size(); ++i) {
         cout << cloud->at(i);
     }
-
+    */
 
     visualization::PCLVisualizer viewer("PCL Viewer");
     viewer.setBackgroundColor  (0.0, 0.0, 0.5);
@@ -81,15 +84,6 @@ int main(int argc, char *argv[])
     visualization::PointCloudColorHandlerRGBField<PointXYZRGB> rgb(cloud);
     viewer.addPointCloud<PointXYZRGB> (cloud, rgb, "input_cloud");
 
-    /*
-    visualization::CloudViewer viewer("Viewer");
-    //viewer.setBackgroundColor (1.0, 1.0, 1.0);
-    //viewer.initCameraParameters ();
-    //visualization::PointCloudColorHandlerRGBField<PointXYZRGB> rgb(cloud);
-    //viewer.addPointCloud<PointXYZRGB> (cloud, rgb, "input_cloud");
-    */
-
-    //viewer.showCloud(cloud);
     while (!viewer.wasStopped()) {
         viewer.spin();
     }

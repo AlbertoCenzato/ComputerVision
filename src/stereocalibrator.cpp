@@ -4,9 +4,15 @@
 using namespace std;
 using namespace cv;
 
+
+// ----- Constructors -----
+
 StereoCalibrator::StereoCalibrator(cv::Size& chessboardSize, float chessSize) {
     setChessboardParams(chessboardSize, chessSize);
 }
+
+
+// ----- Public member functions -----
 
 double StereoCalibrator::calibrate(vector<Mat>& left, vector<Mat>& right, bool skipCheck) {
 
@@ -87,7 +93,6 @@ bool StereoCalibrator::checkVectors(vector<Mat>& left, vector<Mat>& right) {
 
         lenLeft < lenRight ? right.resize(lenLeft) : left.resize(lenRight);
     }
-
 
     // same sizes?
 

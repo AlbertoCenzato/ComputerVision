@@ -1,8 +1,10 @@
 #include "depthcomputer.hpp"
-#include <opencv2/calib3d.hpp>
+
+#include <math.h>
+
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
-#include "stereocalibrator.hpp"
+#include "extra-module/disparity_filter.hpp"
 
 #include <pcl/visualization/pcl_visualizer.h>		// for PCL visualizer
 #include <pcl/visualization/histogram_visualizer.h>	// for histogram visualization
@@ -10,7 +12,7 @@
 #include <pcl/features/fpfh_omp.h>		// for computing FPFH with multi-core implementation
 #include <pcl/filters/filter.h>		// for removing NaN from the point cloud
 
-#include <math.h>
+#include "stereocalibrator.hpp"
 
 using namespace std;
 using namespace cv;
@@ -18,13 +20,13 @@ using namespace pcl;
 
 // ----- Constructors -----
 
-DepthComputer::DepthComputer(const string& fileName, bool tuneParams) {
+DepthComputer::DepthComputer(const string &fileName, bool tuneParams) {
     cout << "Reading calibration params..." << endl;
     readCalibration(fileName);
     this->tuneParams = tuneParams;
 }
 
-DepthComputer::DepthComputer(const StereoCalibrator& calibrator, bool tuneParams) {
+DepthComputer::DepthComputer(const StereoCalibrator &calibrator, bool tuneParams) {
     cout << "Reading calibration params..." << endl;
     readCalibration(calibrator);
     this->tuneParams = tuneParams;
@@ -33,7 +35,7 @@ DepthComputer::DepthComputer(const StereoCalibrator& calibrator, bool tuneParams
 
 // ----- Public member functions -----
 
-void DepthComputer::compute(const Mat left, const Mat right, PointCloud<PointXYZRGB>::Ptr cloud) {
+void DepthComputer::compute(const Mat &left, const Mat &right, PointCloud<PointXYZRGB>::Ptr cloud) {
     cout << "Computing rectification maps..." << endl;
     if (left.empty()) {
         cout << "Empty image!" << endl;
@@ -65,42 +67,44 @@ void DepthComputer::compute(const Mat left, const Mat right, PointCloud<PointXYZ
     matcher->setP1(p1);
     matcher->setP2(p2);
 
-    //ximgproc::createDisparityWLSFilter(matcher);
+    Ptr<StereoMatcher> right_matcher = ximgproc::createRightMatcher(matcher);
+    Ptr<ximgproc::DisparityWLSFilter> wls_filter = ximgproc::createDisparityWLSFilter(matcher);
 
-    Mat disparity, image3d;
+    Mat disparity, disparity_right, disparity_filtered, image3d;
     namedWindow(DISPARITY_WINDOW, WINDOW_NORMAL);
-    namedWindow(IMAGE3D_WINDOW,  WINDOW_NORMAL);
+    namedWindow(IMAGE3D_WINDOW,   WINDOW_NORMAL);
 
     if(tuneParams) {
-        createTrackbar("Min disparities", DISPARITY_WINDOW, &minDisparities, 1024, on_trackbar);
-        createTrackbar("Num disparities", DISPARITY_WINDOW, &numDisparities, 1024, on_trackbar);
-        createTrackbar("Block size",      DISPARITY_WINDOW, &blockSize,      41,   on_trackbar);
-        createTrackbar("P1",              DISPARITY_WINDOW, &p1,             3000, on_trackbar);
-        createTrackbar("P2",              DISPARITY_WINDOW, &p2,             3000, on_trackbar);
-        createTrackbar("PreFilterCap",    DISPARITY_WINDOW, &preFilterCap,   500,  on_trackbar);
+        //createTrackbar("Min disparities", DISPARITY_WINDOW, &minDisparities, 1024, on_trackbar);
+        //createTrackbar("Num disparities", DISPARITY_WINDOW, &numDisparities, 1024, on_trackbar);
+        //createTrackbar("Block size",      DISPARITY_WINDOW, &blockSize,      41,   on_trackbar);
+        //createTrackbar("P1",              DISPARITY_WINDOW, &p1,             3000, on_trackbar);
+        //createTrackbar("P2",              DISPARITY_WINDOW, &p2,             3000, on_trackbar);
+        //createTrackbar("PreFilterCap",    DISPARITY_WINDOW, &preFilterCap,   500,  on_trackbar);
     }
 
     char ch = 1;
     cout << "Press q to continue." << endl;
     do {
         matcher->compute(grayRectLeft,grayRectRight,disparity);
+        right_matcher->compute(grayRectRight,grayRectLeft, disparity_right);
 
-        normalize(disparity, disparity, 0, 255, CV_MINMAX, CV_8U);
-        reprojectImageTo3D(disparity, image3d, Q, false);
+        wls_filter->filter(disparity,grayRectLeft,disparity_filtered,disparity_right);
+
+        normalize(disparity_filtered, disparity_filtered, 0, 255, CV_MINMAX, CV_8U);
+        reprojectImageTo3D(disparity_filtered, image3d, Q, false);
         matToPointCloud(rectLeft, image3d, cloud);
 
-        imshow(DISPARITY_WINDOW, disparity);
+        imshow(DISPARITY_WINDOW, disparity_filtered);
         imshow(IMAGE3D_WINDOW,   image3d);
         ch = tuneParams ? waitKey(100) : 81;
 
     } while (ch != 81 && ch != 113);
 
     waitKey(100);
-
-    //return leftMap1;
 }
 
-bool DepthComputer::readCalibration(const string& fileName) {
+bool DepthComputer::readCalibration(const string &fileName) {
     FileStorage fs(fileName, FileStorage::READ);
     if(!fs.isOpened())
         return false;
@@ -120,7 +124,7 @@ bool DepthComputer::readCalibration(const string& fileName) {
     return true;
 }
 
-bool DepthComputer::readCalibration(const StereoCalibrator& calibrator) {
+bool DepthComputer::readCalibration(const StereoCalibrator &calibrator) {
     cameraMatrix1 = calibrator.cameraMatrix1;
     distCoeffs1   = calibrator.distCoeffs1;
     cameraMatrix2 = calibrator.cameraMatrix2;
@@ -134,7 +138,7 @@ bool DepthComputer::readCalibration(const StereoCalibrator& calibrator) {
     return true;
 }
 
-void DepthComputer::matToPointCloud(const Mat& image, const Mat& depthMap, PointCloud<PointXYZRGB>::Ptr cloud) {
+void DepthComputer::matToPointCloud(const Mat &image, const Mat &depthMap, PointCloud<PointXYZRGB>::Ptr cloud) {
 
     cloud->clear();
     PointXYZRGB p;

@@ -12,12 +12,9 @@ class DepthComputer
 {
 public:
 
-    const std::string DISPARITY_WINDOW = "Disparity";
-    const std::string IMAGE3D_WINDOW = "3D image";
-
-    cv::Ptr<cv::StereoSGBM> matcher;
-    int minDisparities = 0, numDisparities = 144, blockSize = 9;
-    int p1 = 100, p2 = 3000, disp12MaxDiff, preFilterCap = 4, uniquenessRatio, speckleWindowSize, speckleRange;
+    static const std::string DISPARITY_WINDOW;
+    static const std::string TRACKBAR_WINDOW;
+    static const std::string STEREO_PARAMS_FILE;
 
     DepthComputer(const std::string &fileName, bool tuneParams = false);
     DepthComputer(const StereoCalibrator &calibrator, bool tuneParams = false);
@@ -26,6 +23,9 @@ public:
     bool readCalibration(const std::string &fileName);
     bool readCalibration(const StereoCalibrator &calibrator);
 
+    bool saveParams(const std::string &fileName);
+    bool loadParams(const std::string &fileName);
+
     static void matToPointCloud(const cv::Mat &image, const cv::Mat &depthMap, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 
 private:
@@ -33,7 +33,11 @@ private:
     cv::Mat R1, R2, P1, P2, Q;
     bool tuneParams;
 
-    void on_trackbar(int, void*);
+    cv::Ptr<cv::StereoSGBM> matcher;
+    int minDisparities = 0, numDisparities = 144, blockSize = 9;
+    int p1 = 100, p2 = 3000, disp12MaxDiff = 10, preFilterCap = 4, uniquenessRatio = 1, speckleWindowSize = 150, speckleRange = 2;
+
+    static void on_trackbar(int pos, void *obj);
 };
 
 #endif // DEPTHCOMPUTER_H

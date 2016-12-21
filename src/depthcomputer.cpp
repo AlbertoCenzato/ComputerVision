@@ -18,18 +18,28 @@ using namespace std;
 using namespace cv;
 using namespace pcl;
 
+const string DepthComputer::DISPARITY_WINDOW   = "Disparity map";
+const string DepthComputer::TRACKBAR_WINDOW    = "Stereo matcher parameters";
+const string DepthComputer::STEREO_PARAMS_FILE = "stereo_params.xml";
+
 // ----- Constructors -----
 
 DepthComputer::DepthComputer(const string &fileName, bool tuneParams) {
     cout << "Reading calibration params..." << endl;
     readCalibration(fileName);
     this->tuneParams = tuneParams;
+    if (!loadParams(STEREO_PARAMS_FILE)) {
+        cerr << "File " << STEREO_PARAMS_FILE << " not found or corrupted, using default parameters." << endl;
+    }
 }
 
 DepthComputer::DepthComputer(const StereoCalibrator &calibrator, bool tuneParams) {
     cout << "Reading calibration params..." << endl;
     readCalibration(calibrator);
     this->tuneParams = tuneParams;
+    if (!loadParams(STEREO_PARAMS_FILE)) {
+        cerr << "File " << STEREO_PARAMS_FILE << " not found or corrupted, using default parameters." << endl;
+    }
 }
 
 
@@ -54,16 +64,20 @@ void DepthComputer::compute(const Mat &left, const Mat &right, PointCloud<PointX
     imshow("Left",  rectLeft);
     imshow("Right", rectRight);
 
+    waitKey(100);
+
+    /*
     Mat grayRectLeft, grayRectRight;
     cvtColor(rectLeft,  grayRectLeft,  CV_BGR2GRAY);
     cvtColor(rectRight, grayRectRight, CV_BGR2GRAY);
+    */
 
     matcher = StereoSGBM::create(minDisparities,numDisparities, blockSize);
     matcher->setPreFilterCap(preFilterCap);
-    matcher->setSpeckleRange(2);
-    matcher->setSpeckleWindowSize(150);
-    matcher->setUniquenessRatio(1);
-    matcher->setDisp12MaxDiff(10);
+    matcher->setSpeckleRange(speckleRange);
+    matcher->setSpeckleWindowSize(speckleWindowSize);
+    matcher->setUniquenessRatio(uniquenessRatio);
+    matcher->setDisp12MaxDiff(disp12MaxDiff);
     matcher->setP1(p1);
     matcher->setP2(p2);
 
@@ -72,36 +86,48 @@ void DepthComputer::compute(const Mat &left, const Mat &right, PointCloud<PointX
 
     Mat disparity, disparity_right, disparity_filtered, image3d;
     namedWindow(DISPARITY_WINDOW, WINDOW_NORMAL);
-    namedWindow(IMAGE3D_WINDOW,   WINDOW_NORMAL);
+    namedWindow(TRACKBAR_WINDOW,  WINDOW_NORMAL);
 
     if(tuneParams) {
-        //createTrackbar("Min disparities", DISPARITY_WINDOW, &minDisparities, 1024, on_trackbar);
-        //createTrackbar("Num disparities", DISPARITY_WINDOW, &numDisparities, 1024, on_trackbar);
-        //createTrackbar("Block size",      DISPARITY_WINDOW, &blockSize,      41,   on_trackbar);
-        //createTrackbar("P1",              DISPARITY_WINDOW, &p1,             3000, on_trackbar);
-        //createTrackbar("P2",              DISPARITY_WINDOW, &p2,             3000, on_trackbar);
-        //createTrackbar("PreFilterCap",    DISPARITY_WINDOW, &preFilterCap,   500,  on_trackbar);
+        createTrackbar("Min disparities",   TRACKBAR_WINDOW, &minDisparities,    1024, on_trackbar, this);
+        createTrackbar("Num disparities",   TRACKBAR_WINDOW, &numDisparities,    1024, on_trackbar, this);
+        createTrackbar("Block size",        TRACKBAR_WINDOW, &blockSize,         41,   on_trackbar, this);
+        createTrackbar("P1",                TRACKBAR_WINDOW, &p1,                3000, on_trackbar, this);
+        createTrackbar("P2",                TRACKBAR_WINDOW, &p2,                3000, on_trackbar, this);
+        createTrackbar("PreFilterCap",      TRACKBAR_WINDOW, &preFilterCap,      500,  on_trackbar, this);
+        createTrackbar("SpeckleRange",      TRACKBAR_WINDOW, &speckleRange,      10,   on_trackbar, this);
+        createTrackbar("SpeckleWindowSize", TRACKBAR_WINDOW, &speckleWindowSize, 300,  on_trackbar, this);
+        createTrackbar("UniquenessRatio",   TRACKBAR_WINDOW, &uniquenessRatio,   100,  on_trackbar, this);
+        createTrackbar("disp12MaxDiff",     TRACKBAR_WINDOW, &disp12MaxDiff,     500,  on_trackbar, this);
     }
 
-    char ch = 1;
-    cout << "Press q to continue." << endl;
+    char ch;
     do {
-        matcher->compute(grayRectLeft,grayRectRight,disparity);
-        right_matcher->compute(grayRectRight,grayRectLeft, disparity_right);
+        matcher->compute(rectLeft,rectRight,disparity);
+        right_matcher->compute(rectRight,rectLeft, disparity_right);
 
-        wls_filter->filter(disparity,grayRectLeft,disparity_filtered,disparity_right);
+        wls_filter->filter(disparity,rectLeft,disparity_filtered,disparity_right);
 
         normalize(disparity_filtered, disparity_filtered, 0, 255, CV_MINMAX, CV_8U);
         reprojectImageTo3D(disparity_filtered, image3d, Q, false);
         matToPointCloud(rectLeft, image3d, cloud);
 
         imshow(DISPARITY_WINDOW, disparity_filtered);
-        imshow(IMAGE3D_WINDOW,   image3d);
-        ch = tuneParams ? waitKey(100) : 81;
 
-    } while (ch != 81 && ch != 113);
+        cout << "Press q to confirm stereo parameters and continue, r to recompute the scene." << endl;
+        ch = tuneParams ? waitKey(0) : 'q';
+
+    } while (ch != 'q' && ch != 'Q');
 
     waitKey(100);
+
+    if (tuneParams) {
+        cout << "Save stereo matcher parameters? [y/n]" << endl;
+        char ch;
+        cin >> ch;
+        if(ch == 'y')
+            saveParams(STEREO_PARAMS_FILE);
+    }
 }
 
 bool DepthComputer::readCalibration(const string &fileName) {
@@ -138,6 +164,51 @@ bool DepthComputer::readCalibration(const StereoCalibrator &calibrator) {
     return true;
 }
 
+bool DepthComputer::loadParams(const string &fileName) {
+    FileStorage fs(fileName, FileStorage::READ);
+    if(!fs.isOpened())
+        return false;
+
+    fs["minDisparities"] >> minDisparities;
+    fs["numDisparities"] >> numDisparities;
+    fs["blockSize"     ] >> blockSize;
+
+    fs["p1"] >> p1;
+    fs["p2"] >> p2;
+
+    fs["disp12MaxDiff"    ] >> disp12MaxDiff;
+    fs["preFilterCap"     ] >> preFilterCap;
+    fs["uniquenessRatio"  ] >> uniquenessRatio;
+    fs["speckleWindowSize"] >> speckleWindowSize;
+    fs["speckleRange"     ] >> speckleRange;
+
+    fs.release();
+    return true;
+}
+
+bool DepthComputer::saveParams(const string &fileName) {
+    FileStorage fs(fileName, FileStorage::WRITE);
+    if(!fs.isOpened())
+        return false;
+
+    fs << "minDisparities" << minDisparities;
+    fs << "numDisparities" << numDisparities;
+    fs << "blockSize"      << blockSize;
+
+    fs << "p1" << p1;
+    fs << "p2" << p2;
+
+    fs << "disp12MaxDiff"     << disp12MaxDiff;
+    fs << "preFilterCap"      << preFilterCap;
+    fs << "uniquenessRatio"   << uniquenessRatio;
+    fs << "speckleWindowSize" << speckleWindowSize;
+    fs << "speckleRange"      << speckleRange;
+
+    fs.release();
+    return true;
+}
+
+
 void DepthComputer::matToPointCloud(const Mat &image, const Mat &depthMap, PointCloud<PointXYZRGB>::Ptr cloud) {
 
     cloud->clear();
@@ -168,26 +239,22 @@ void DepthComputer::matToPointCloud(const Mat &image, const Mat &depthMap, Point
 
 // ----- Private member functions -----
 
-void DepthComputer::on_trackbar(int, void*) {
+void DepthComputer::on_trackbar(int pos, void *obj) {
 
-    if(numDisparities%16 != 0)
-        numDisparities += 16 - numDisparities%16;
-    if(blockSize%2 == 0)
-        ++blockSize;
+    DepthComputer *self = (DepthComputer*)obj;
 
-    setTrackbarPos("Num disparities", DISPARITY_WINDOW, numDisparities);
-    setTrackbarPos("Block size",      DISPARITY_WINDOW, blockSize);
-    setTrackbarPos("P1",              DISPARITY_WINDOW, p1);
-    setTrackbarPos("P2",              DISPARITY_WINDOW, p2);
-    setTrackbarPos("PreFilterCap",    DISPARITY_WINDOW, preFilterCap);
+    if(self->numDisparities%16 != 0)
+        self->numDisparities += 16 - self->numDisparities%16;
+    if(self->blockSize % 2 == 0)
+        self->blockSize++;
 
-    matcher = StereoSGBM::create(minDisparities,numDisparities, blockSize);
-    matcher->setPreFilterCap(preFilterCap);
-    matcher->setSpeckleRange(2);
-    matcher->setSpeckleWindowSize(150);
-    matcher->setUniquenessRatio(1);
-    matcher->setDisp12MaxDiff(10);
-    matcher->setP1(p1);
-    matcher->setP2(p2);
+    self->matcher = StereoSGBM::create(self->minDisparities,self->numDisparities,self->blockSize);
+    self->matcher->setPreFilterCap(self->preFilterCap);
+    self->matcher->setSpeckleRange(self->speckleRange);
+    self->matcher->setSpeckleWindowSize(self->speckleWindowSize);
+    self->matcher->setUniquenessRatio(self->uniquenessRatio);
+    self->matcher->setDisp12MaxDiff(self->disp12MaxDiff);
+    self->matcher->setP1(self->p1);
+    self->matcher->setP2(self->p2);
 }
 

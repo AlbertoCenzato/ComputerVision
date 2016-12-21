@@ -27,19 +27,14 @@ const String KEYS =
     "{help h usage ? |       | print this message   }"
     "{@leftImage     |       | left stereo image    }"
     "{@rightImage    |       | right stereo image   }"
-    "{calibrate      |       | if set calibrates camera before depth evauation (requires --left and --right)}"
-    "{left           |       | path to left calibration image sequence expressed as /path/to/file/filename%0#d.jpg\n"
-                              "where # is the number of digits used in filename}"
-    "{right          |       | path to right calibration image sequence expressed as /path/to/file/filename%0#d.jpg\n"
-                              "where # is the number of digits used in filename}"
+    "{calibrate      |       | if set calibrates camera before depth evauation}"
     "{tune           |       | if set allows to tune the algorithm parameters during execution }";
 
 void showImages(vector<Mat>& images);
-void calibrateCameras(ImageLoader &loader, const CommandLineParser &parser);
+bool calibrateCameras(ImageLoader &loader);
 
 int main(int argc, char *argv[])
 {
-
     CommandLineParser parser(argc,argv,KEYS);
 
     if(argc < 3) {
@@ -48,10 +43,13 @@ int main(int argc, char *argv[])
     }
 
     ImageLoader loader = ImageLoader();
-    loader.downscalingRatio = 0.25;
+    //loader.downscalingRatio = 0.25;
 
-    if(parser.has("calibrate") && parser.has("left") && parser.has("right")) {
-        calibrateCameras(loader, parser);
+    if(parser.has("calibrate")) {
+        if (!calibrateCameras(loader)) {
+            cout << "Calibration failed!" << endl;
+            return 0;
+        }
     }
 
     string pathLeft  = parser.get<string>(0);
@@ -71,11 +69,7 @@ int main(int argc, char *argv[])
     DepthComputer dptComputer = DepthComputer(CALIB_FILE, tuneParams);
     dptComputer.compute(imgLeft, imgRight, cloud);
 
-    /*
-    for(int i = 0; i < cloud->size(); ++i) {
-        cout << cloud->at(i);
-    }
-    */
+    waitKey(0);
 
     visualization::PCLVisualizer viewer("PCL Viewer");
     viewer.setBackgroundColor  (0.0, 0.0, 0.5);
@@ -103,26 +97,58 @@ void showImages(vector<Mat>& images) {
     waitKey(0);
 }
 
-void calibrateCameras(ImageLoader& loader, const CommandLineParser& parser) {
-    cout << "Loading images..." << endl;
+bool calibrateCameras(ImageLoader &loader) {
 
-    string pathLeft  = parser.get<string>("left");
-    string pathRight = parser.get<string>("right");
+    cout << "Please provide chessboard pattern width." << endl;
+    int width;
+    cin >> width;
+
+    cout << "Please provide chessboard pattern height." << endl;
+    int height;
+    cin >> height;
+
+    string empty;
+    getline(cin,empty); // TODO: this trick sucks... find a better way
+
+    Size size(width,height);
+
     vector<Mat> left(20), right(20);
+    char ch = 'q';
+    do {
+        cout << "Please provide the path to left calibration image sequence;\n"
+             << "it must be expressed as /path/to/file/filename%0#d.jpg\n"
+             << "where # is the number of digits used in filename." << endl;
 
-    if(loader.getImage(pathLeft,left) && loader.getImage(pathRight,right))
-        cout << "Images loaded successfully!" << endl;
-    else {
-        cout << "Error loading images!" << endl;
-        return;
-    }
+        string pathLeft;
+        getline(cin,pathLeft);
 
-    Size size(7,6);
-    showImages(left);
+        cout << "Please provide the path to right calibration image sequence." << endl;
+
+        string pathRight;
+        getline(cin,pathRight);
+
+        cout << "Loading images for calibration..." << endl;
+
+        if(loader.getImage(pathLeft,left) && loader.getImage(pathRight,right)) {
+            cout << "Images loaded successfully!" << endl;
+            ch = 'q';
+        }
+        else {
+            cout << "Error loading images!"
+                 << "Would you like to retry? [y/n]" << endl;
+            cin >> ch;
+            if(ch == 'n')
+                return false;
+            else
+                ch = 'a';
+        }
+    } while(ch != 'q' && ch != 'Q');
 
     StereoCalibrator calib = StereoCalibrator(size, 12);
-    cout << "Re-projection error: " << calib.calibrate(left, right) << endl;
-    calib.writeCalibration(CALIB_FILE);
+    cout << "Re-projection error: " << calib.compute(left, right) << endl;
+    calib.saveCalibration(CALIB_FILE);
+
+    return true;
 }
 
 

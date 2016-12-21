@@ -7,14 +7,14 @@ using namespace cv;
 
 // ----- Constructors -----
 
-StereoCalibrator::StereoCalibrator(cv::Size& chessboardSize, float chessSize) {
+StereoCalibrator::StereoCalibrator(cv::Size &chessboardSize, float chessSize) {
     setChessboardParams(chessboardSize, chessSize);
 }
 
 
 // ----- Public member functions -----
 
-double StereoCalibrator::calibrate(vector<Mat>& left, vector<Mat>& right, bool skipCheck) {
+double StereoCalibrator::compute(vector<Mat> &left, vector<Mat> &right, bool skipCheck) {
 
     if(!skipCheck && !checkVectors(left,right))
         return DBL_MAX;
@@ -24,7 +24,7 @@ double StereoCalibrator::calibrate(vector<Mat>& left, vector<Mat>& right, bool s
     int lenght = left.size();
 
     vector<Point3f> pattern(0);
-    computeChessboardPattern(patternSize, chessSize, pattern);
+    getChessboardPattern(patternSize, chessSize, pattern);
 
     vector<vector<Point3f> > objectPoints(lenght);
     for(int i = 0; i < lenght; ++i) {
@@ -32,18 +32,17 @@ double StereoCalibrator::calibrate(vector<Mat>& left, vector<Mat>& right, bool s
     }
 
     cout << "Looking for corners..." << endl;
-    vector<vector<Point2f> > leftCorners(0);
-    for(int i = 0; i < lenght; ++i) {
-        vector<Point2f> corners(patternSize.width*patternSize.height);        //TODO: if findChessboradCorners returns false
-        findChessboardCorners(left[i], patternSize, corners);                //      should do something like ramoving the image
-        leftCorners.push_back(corners);                                     //      from the dataset
-    }
-
+    vector<vector<Point2f> > leftCorners (0);
     vector<vector<Point2f> > rightCorners(0);
     for(int i = 0; i < lenght; ++i) {
-        vector<Point2f> corners(patternSize.width*patternSize.height);
-        findChessboardCorners(right[i], patternSize, corners);
-        rightCorners.push_back(corners);
+        vector<Point2f> cornersLeft (patternSize.width*patternSize.height);
+        vector<Point2f> cornersRight(patternSize.width*patternSize.height);
+        bool leftFound  = findChessboardCorners(left[i],  patternSize, cornersLeft,  CALIB_CB_ADAPTIVE_THRESH);
+        bool rightFound = findChessboardCorners(right[i], patternSize, cornersRight, CALIB_CB_ADAPTIVE_THRESH);
+        if (leftFound && rightFound) {
+            leftCorners.push_back(cornersLeft);
+            rightCorners.push_back(cornersRight);
+        }
     }
 
     // stereoCalibrate
@@ -54,7 +53,7 @@ double StereoCalibrator::calibrate(vector<Mat>& left, vector<Mat>& right, bool s
     cameraMatrix2 = initCameraMatrix2D(objectPoints,rightCorners,imgSize);
     double error = stereoCalibrate(objectPoints, leftCorners, rightCorners, cameraMatrix1,
                                    distCoeffs1, cameraMatrix2, distCoeffs2, imgSize,
-                                   R, T, E, F,  CV_CALIB_SAME_FOCAL_LENGTH | CV_CALIB_ZERO_TANGENT_DIST);
+                                   R, T, E, F, CV_CALIB_SAME_FOCAL_LENGTH | CV_CALIB_ZERO_TANGENT_DIST);
 
     cout << "Computing stereo rectification..." << endl;
     stereoRectify(cameraMatrix1,distCoeffs1,cameraMatrix2,distCoeffs2, imgSize, R, T, R1, R2, P1, P2, Q);
@@ -62,7 +61,7 @@ double StereoCalibrator::calibrate(vector<Mat>& left, vector<Mat>& right, bool s
     return error;
 }
 
-void StereoCalibrator::computeChessboardPattern(const Size& chessboardSize, float chessSize, vector<Point3f>& pattern) {
+void StereoCalibrator::getChessboardPattern(const Size &chessboardSize, float chessSize, vector<Point3f> &pattern) {
 
     pattern.clear();
     //pattern.resize(chessboardSize.height*chessboardSize.width);
@@ -73,7 +72,7 @@ void StereoCalibrator::computeChessboardPattern(const Size& chessboardSize, floa
     }
 }
 
-bool StereoCalibrator::checkVectors(vector<Mat>& left, vector<Mat>& right) {
+bool StereoCalibrator::checkVectors(vector<Mat> &left, vector<Mat> &right) {
 
     // empty?
 
@@ -115,7 +114,7 @@ bool StereoCalibrator::checkVectors(vector<Mat>& left, vector<Mat>& right) {
     return true;
 }
 
-StereoCalibrator* StereoCalibrator::setChessboardParams(cv::Size& chessboardSize, float chessSize) {
+StereoCalibrator* StereoCalibrator::setChessboardParams(cv::Size &chessboardSize, float chessSize) {
     this->chessboardSize.width  = chessboardSize.width;
     this->chessboardSize.height = chessboardSize.height;
     this->chessSize = chessSize;
@@ -123,7 +122,7 @@ StereoCalibrator* StereoCalibrator::setChessboardParams(cv::Size& chessboardSize
     return this;
 }
 
-bool StereoCalibrator::writeCalibration(const string& fileName) {
+bool StereoCalibrator::saveCalibration(const string &fileName) {
     FileStorage fs(fileName, FileStorage::WRITE);
     if(!fs.isOpened())
         return false;
@@ -143,7 +142,7 @@ bool StereoCalibrator::writeCalibration(const string& fileName) {
     return true;
 }
 
-bool StereoCalibrator::readCalibration(const string& fileName) {
+bool StereoCalibrator::loadCalibration(const string &fileName) {
     FileStorage fs(fileName, FileStorage::READ);
     if(!fs.isOpened())
         return false;

@@ -5,9 +5,9 @@ using namespace std;
 using namespace cv;
 
 ImageLoader::ImageLoader() : VideoCapture() {}
-ImageLoader::ImageLoader(const string& path) : VideoCapture(path) {}
+ImageLoader::ImageLoader(const string& path) : VideoCapture(path, cv::CAP_IMAGES) {}
 
-bool ImageLoader::getImage(Mat& image) {
+bool ImageLoader::getImage(Mat &image) {
     if(!isOpened())
         return false;
 
@@ -24,7 +24,7 @@ bool ImageLoader::getImage(Mat& image) {
     return true;
 }
 
-bool ImageLoader::getImage(vector<Mat>& imageSequence) {
+bool ImageLoader::getImage(vector<Mat> &imageSequence) {
 
     if(!isOpened())
         return false;
@@ -49,12 +49,12 @@ bool ImageLoader::getImage(vector<Mat>& imageSequence) {
     return true;
 }
 
-bool ImageLoader::getImage(const std::string& path, cv::Mat& image) {
-    open(path);
+bool ImageLoader::getImage(const std::string &path, cv::Mat &image) {
+    open(path, cv::CAP_IMAGES);
     return getImage(image);
 }
 
-bool ImageLoader::getImage(const std::string& path, std::vector<cv::Mat>& imageSequence) {
-    open(path);
+bool ImageLoader::getImage(const std::string &path, std::vector<cv::Mat> &imageSequence) {
+    open(path, cv::CAP_IMAGES);
     return getImage(imageSequence);
 }

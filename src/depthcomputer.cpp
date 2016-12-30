@@ -84,7 +84,7 @@ void DepthComputer::compute(const Mat &left, const Mat &right, PointCloud<PointX
     Ptr<StereoMatcher> right_matcher = ximgproc::createRightMatcher(matcher);
     Ptr<ximgproc::DisparityWLSFilter> wls_filter = ximgproc::createDisparityWLSFilter(matcher);
 
-    Mat disparity, disparity_right, disparity_filtered, image3d;
+    Mat disparity, disparity_right, disparity_filtered, disparity_filtered_norm, image3d;
     namedWindow(DISPARITY_WINDOW, WINDOW_NORMAL);
     namedWindow(TRACKBAR_WINDOW,  WINDOW_NORMAL);
 
@@ -108,11 +108,14 @@ void DepthComputer::compute(const Mat &left, const Mat &right, PointCloud<PointX
 
         wls_filter->filter(disparity,rectLeft,disparity_filtered,disparity_right);
 
-        normalize(disparity_filtered, disparity_filtered, 0, 255, CV_MINMAX, CV_8U);
+        normalize(disparity_filtered, disparity_filtered_norm, 0, 255, CV_MINMAX, CV_8U);
         reprojectImageTo3D(disparity_filtered, image3d, Q, false);
+        //normalize(disparity, disparity_filtered_norm, 0, 255, CV_MINMAX, CV_8U);
+        //reprojectImageTo3D(disparity, image3d, Q, false);
+
         matToPointCloud(rectLeft, image3d, cloud);
 
-        imshow(DISPARITY_WINDOW, disparity_filtered);
+        imshow(DISPARITY_WINDOW, disparity_filtered_norm);
 
         cout << "Press q to confirm stereo parameters and continue, r to recompute the scene." << endl;
         ch = tuneParams ? waitKey(0) : 'q';
@@ -128,6 +131,7 @@ void DepthComputer::compute(const Mat &left, const Mat &right, PointCloud<PointX
         if(ch == 'y')
             saveParams(STEREO_PARAMS_FILE);
     }
+
 }
 
 bool DepthComputer::readCalibration(const string &fileName) {
@@ -232,6 +236,7 @@ void DepthComputer::matToPointCloud(const Mat &image, const Mat &depthMap, Point
             p.y = position[1];
             p.z = position[2];
             cloud->at(count) = p;
+            //cout << p << endl;
         }
     }
 }

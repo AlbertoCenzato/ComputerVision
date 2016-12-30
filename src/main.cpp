@@ -9,7 +9,6 @@
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/filters/filter.h>		// for removing NaN from the point cloud
 
-
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -43,7 +42,7 @@ int main(int argc, char *argv[])
     }
 
     ImageLoader loader = ImageLoader();
-    //loader.downscalingRatio = 0.25;
+    //loader.downscalingRatio = 0.5;
 
     if(parser.has("calibrate")) {
         if (!calibrateCameras(loader)) {
@@ -67,7 +66,12 @@ int main(int argc, char *argv[])
 
     bool tuneParams = parser.has("tune");
     DepthComputer dptComputer = DepthComputer(CALIB_FILE, tuneParams);
+
+    auto begin = chrono::high_resolution_clock::now();
     dptComputer.compute(imgLeft, imgRight, cloud);
+    auto end = chrono::high_resolution_clock::now();
+    cout << "\nDepth: " << chrono::duration_cast<chrono::milliseconds>(end-begin).count() << "ms" << endl;
+
 
     waitKey(0);
 
@@ -106,9 +110,10 @@ bool calibrateCameras(ImageLoader &loader) {
     cout << "Please provide chessboard pattern height." << endl;
     int height;
     cin >> height;
+    cin.ignore(25,'\n');
 
-    string empty;
-    getline(cin,empty); // TODO: this trick sucks... find a better way
+    //string empty;
+    //getline(cin,empty); // TODO: this trick sucks... find a better way
 
     Size size(width,height);
 
@@ -137,6 +142,7 @@ bool calibrateCameras(ImageLoader &loader) {
             cout << "Error loading images!"
                  << "Would you like to retry? [y/n]" << endl;
             cin >> ch;
+            cin.ignore(25,'\n');
             if(ch == 'n')
                 return false;
             else
@@ -145,7 +151,13 @@ bool calibrateCameras(ImageLoader &loader) {
     } while(ch != 'q' && ch != 'Q');
 
     StereoCalibrator calib = StereoCalibrator(size, 12);
+
+
+    auto begin = chrono::high_resolution_clock::now();
     cout << "Re-projection error: " << calib.compute(left, right) << endl;
+    auto end = chrono::high_resolution_clock::now();
+    cout << "\nCalibration: " << chrono::duration_cast<chrono::milliseconds>(end-begin).count() << "ms" << endl;
+
     calib.saveCalibration(CALIB_FILE);
 
     return true;

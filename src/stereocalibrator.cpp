@@ -53,7 +53,7 @@ double StereoCalibrator::compute(vector<Mat> &left, vector<Mat> &right, bool ski
     cameraMatrix2 = initCameraMatrix2D(objectPoints,rightCorners,imgSize);
     double error = stereoCalibrate(objectPoints, leftCorners, rightCorners, cameraMatrix1,
                                    distCoeffs1, cameraMatrix2, distCoeffs2, imgSize,
-                                   R, T, E, F, CV_CALIB_SAME_FOCAL_LENGTH | CV_CALIB_ZERO_TANGENT_DIST);
+                                   R, T, E, F, CV_CALIB_SAME_FOCAL_LENGTH | CV_CALIB_ZERO_TANGENT_DIST,TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 1e-6));
 
     cout << "Computing stereo rectification..." << endl;
     stereoRectify(cameraMatrix1,distCoeffs1,cameraMatrix2,distCoeffs2, imgSize, R, T, R1, R2, P1, P2, Q);

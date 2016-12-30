@@ -2,7 +2,7 @@
 #define IMAGELOADER_H
 
 #include "global_includes.hpp"
-#include <opencv2/videoio.hpp>
+#include <opencv2/opencv.hpp>
 
 class ImageLoader : public cv::VideoCapture
 {

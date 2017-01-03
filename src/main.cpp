@@ -8,6 +8,7 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/filters/filter.h>		// for removing NaN from the point cloud
+#include <pcl/filters/statistical_outlier_removal.h>
 
 #include <opencv2/videoio.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -27,23 +28,26 @@ const String KEYS =
     "{@leftImage     |       | left stereo image    }"
     "{@rightImage    |       | right stereo image   }"
     "{calibrate      |       | if set calibrates camera before depth evauation}"
-    "{tune           |       | if set allows to tune the algorithm parameters during execution }";
+    "{tune           |       | if set allows to tune the algorithm parameters during execution }"
+    "{downscaling    |   1   | set to a value in [0,1] interval to have all images downscaled  }";
 
-void showImages(vector<Mat>& images);
 bool calibrateCameras(ImageLoader &loader);
+void matToPointCloud(const Mat &depthMap, const Mat &image, PointCloud<PointXYZRGB>::Ptr cloud);
 
 int main(int argc, char *argv[])
 {
-    CommandLineParser parser(argc,argv,KEYS);
+    CommandLineParser parser(argc,argv,KEYS);      // opencv parser for command line arguments
 
-    if(argc < 3) {
+    // if wrong arguments, print usage
+    if(!parser.has("@leftImage") || !parser.has("@rightImage")) {
         parser.printMessage();
         return 0;
     }
 
     ImageLoader loader = ImageLoader();
-    //loader.downscalingRatio = 0.5;
+    loader.downscalingRatio = parser.get<float>("downscaling");
 
+    //----- calibration (optional) -----
     if(parser.has("calibrate")) {
         if (!calibrateCameras(loader)) {
             cout << "Calibration failed!" << endl;
@@ -51,30 +55,34 @@ int main(int argc, char *argv[])
         }
     }
 
+    //----- load images -----
     string pathLeft  = parser.get<string>(0);
     string pathRight = parser.get<string>(1);
     Mat imgLeft, imgRight;
 
-    if(!loader.getImage(pathLeft, imgLeft) || !loader.getImage(pathRight,imgRight)) {
+    if(!loader.get(pathLeft, imgLeft) || !loader.get(pathRight,imgRight)) {
         cerr << "Empty images!" << endl;
         cout << "Maybe you mistyped an argument." << endl;
         parser.printMessage();
         return 0;
     }
 
-    PointCloud<PointXYZRGB>::Ptr cloud(new PointCloud<PointXYZRGB>);
-
+    //----- compute depth -----
     bool tuneParams = parser.has("tune");
     DepthComputer dptComputer = DepthComputer(CALIB_FILE, tuneParams);
 
+    Mat rectLeft, image3d;
+
     auto begin = chrono::high_resolution_clock::now();
-    dptComputer.compute(imgLeft, imgRight, cloud);
+    dptComputer.compute(imgLeft, imgRight, rectLeft, image3d);
     auto end = chrono::high_resolution_clock::now();
     cout << "\nDepth: " << chrono::duration_cast<chrono::milliseconds>(end-begin).count() << "ms" << endl;
 
+    //----- conversion to point cloud -----
+    PointCloud<PointXYZRGB>::Ptr cloud(new PointCloud<PointXYZRGB>);
+    matToPointCloud(image3d, rectLeft, cloud);
 
-    waitKey(0);
-
+    //----- visualization -----
     visualization::PCLVisualizer viewer("PCL Viewer");
     viewer.setBackgroundColor  (0.0, 0.0, 0.5);
     viewer.addCoordinateSystem (0.1);
@@ -89,18 +97,6 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-
-void showImages(vector<Mat>& images) {
-    string name = "Image ";
-    for(int i = 0; i < images.size(); ++i) {
-        string window_name = name + boost::lexical_cast<string>(i+1);
-        namedWindow(window_name, WINDOW_NORMAL);
-        imshow(window_name, images[i]);
-    }
-
-    waitKey(0);
-}
-
 bool calibrateCameras(ImageLoader &loader) {
 
     cout << "Please provide chessboard pattern width." << endl;
@@ -110,10 +106,7 @@ bool calibrateCameras(ImageLoader &loader) {
     cout << "Please provide chessboard pattern height." << endl;
     int height;
     cin >> height;
-    cin.ignore(25,'\n');
-
-    //string empty;
-    //getline(cin,empty); // TODO: this trick sucks... find a better way
+    cin.ignore(25,'\n');    // removes line feed from the buffer to have a clean call to getline()
 
     Size size(width,height);
 
@@ -134,7 +127,7 @@ bool calibrateCameras(ImageLoader &loader) {
 
         cout << "Loading images for calibration..." << endl;
 
-        if(loader.getImage(pathLeft,left) && loader.getImage(pathRight,right)) {
+        if(loader.get(pathLeft,left) && loader.get(pathRight,right)) {
             cout << "Images loaded successfully!" << endl;
             ch = 'q';
         }
@@ -161,6 +154,36 @@ bool calibrateCameras(ImageLoader &loader) {
     calib.saveCalibration(CALIB_FILE);
 
     return true;
+}
+
+void matToPointCloud(const Mat &depthMap, const Mat &image, PointCloud<PointXYZRGB>::Ptr cloud) {
+
+    cloud->clear();
+    PointXYZRGB p;
+    cloud->points.resize(depthMap.cols * depthMap.rows);    // resizing the cloud to avoid dynamic reallocation
+    cloud->width  = depthMap.cols*depthMap.rows;
+    cloud->height = 1;
+    int count = 0;
+    for(int i = 0; i < depthMap.rows; ++i) {
+        for(int j = 0; j < depthMap.cols; ++j, ++count) {
+            Vec3f position = depthMap.at<Vec3f>(i,j);
+
+            // removing nan and infinity valued points for visualization
+            if(isinf(position[2]) || isinf(position[1]) || isinf(position[0]) ||
+               isnan(position[2]) || isnan(position[1]) || isnan(position[0]) ||
+               position[2] == 0)
+                continue;
+
+            Vec3b color    = image.at<Vec3b>(i,j);
+            p.r = color[2];
+            p.g = color[1];
+            p.b = color[0];
+            p.x = position[0];
+            p.y = position[1];
+            p.z = position[2];
+            cloud->at(count) = p;
+        }
+    }
 }
 
 

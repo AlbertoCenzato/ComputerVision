@@ -2,8 +2,6 @@
 #define DEPTHCOMPUTER_H
 
 #include "global_includes.hpp"
-#include <pcl/point_types.h>
-#include <pcl/io/pcd_io.h> 		    // for reading the point cloud
 #include <opencv2/calib3d.hpp>
 
 class StereoCalibrator;
@@ -19,14 +17,14 @@ public:
     DepthComputer(const std::string &fileName, bool tuneParams = false);
     DepthComputer(const StereoCalibrator &calibrator, bool tuneParams = false);
 
-    void compute(const cv::Mat &left, const cv::Mat &right, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+    void compute(const cv::Mat &left, const cv::Mat &right, cv::Mat &rectLeft, cv::Mat &image3d);
     bool readCalibration(const std::string &fileName);
     bool readCalibration(const StereoCalibrator &calibrator);
 
     bool saveParams(const std::string &fileName);
     bool loadParams(const std::string &fileName);
 
-    static void matToPointCloud(const cv::Mat &image, const cv::Mat &depthMap, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
+    //static void matToPointCloud(const cv::Mat &image, const cv::Mat &depthMap, pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud);
 
 private:
     cv::Mat cameraMatrix1, distCoeffs1, cameraMatrix2, distCoeffs2;
@@ -37,6 +35,8 @@ private:
     int minDisparities = 0, numDisparities = 144, blockSize = 9;
     int p1 = 100, p2 = 3000, disp12MaxDiff = 10, preFilterCap = 4, uniquenessRatio = 1, speckleWindowSize = 150, speckleRange = 2;
 
+    void constructor(bool tuneParams);
+    void tune(const cv::Mat &rectLeft, const cv::Mat &rectRight, cv::Mat &disparity);
     static void on_trackbar(int pos, void *obj);
 };
 

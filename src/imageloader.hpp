@@ -11,14 +11,12 @@ public:
     float downscalingRatio = 1;
 
     ImageLoader();
-    ImageLoader(const std::string& path);
+    ImageLoader(const std::string &path);
 
-    bool from(std::string& path);
-
-    bool getImage(cv::Mat& image);
-    bool getImage(std::vector<cv::Mat>& imageSequence);
-    bool getImage(const std::string& path, cv::Mat& image);
-    bool getImage(const std::string& path, std::vector<cv::Mat>& imageSequence);
+    bool get(cv::Mat& image);
+    bool get(std::vector<cv::Mat> &imageSequence);
+    bool get(const std::string &path, cv::Mat &image);
+    bool get(const std::string &path, std::vector<cv::Mat> &imageSequence);
 };
 
 #endif // IMAGELOADER_H

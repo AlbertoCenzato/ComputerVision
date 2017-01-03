@@ -5,20 +5,26 @@ using namespace std;
 using namespace cv;
 
 
-// ----- Constructors -----
+// ----- Constructor -----
 
 StereoCalibrator::StereoCalibrator(cv::Size &chessboardSize, float chessSize) {
     setChessboardParams(chessboardSize, chessSize);
 }
 
-
 // ----- Public member functions -----
+void StereoCalibrator::setChessboardParams(cv::Size &chessboardSize, float chessSize) {
+    this->chessboardSize.width  = chessboardSize.width;
+    this->chessboardSize.height = chessboardSize.height;
+    this->chessSize = chessSize;
+}
 
 double StereoCalibrator::compute(vector<Mat> &left, vector<Mat> &right, bool skipCheck) {
 
+    //----- check if images are ok (optional) -----
     if(!skipCheck && !checkVectors(left,right))
         return DBL_MAX;
 
+    //----- build chessboard pattern -----
     Size imgSize(left[0].cols,left[0].rows);
     Size patternSize(chessboardSize.width-1,chessboardSize.height-1);
     int lenght = left.size();
@@ -31,7 +37,8 @@ double StereoCalibrator::compute(vector<Mat> &left, vector<Mat> &right, bool ski
         objectPoints[i] = pattern;
     }
 
-    cout << "Looking for corners..." << endl;
+    // ----- extracting corner positions from images -----
+    cout << "Looking for chessboard corners..." << endl;
     vector<vector<Point2f> > leftCorners (0);
     vector<vector<Point2f> > rightCorners(0);
     for(int i = 0; i < lenght; ++i) {
@@ -45,7 +52,7 @@ double StereoCalibrator::compute(vector<Mat> &left, vector<Mat> &right, bool ski
         }
     }
 
-    // stereoCalibrate
+    //----- stereo calibration -----
     cout << "Computing stereo calibration..." << endl;
 
     Mat R, T, E, F;
@@ -64,7 +71,6 @@ double StereoCalibrator::compute(vector<Mat> &left, vector<Mat> &right, bool ski
 void StereoCalibrator::getChessboardPattern(const Size &chessboardSize, float chessSize, vector<Point3f> &pattern) {
 
     pattern.clear();
-    //pattern.resize(chessboardSize.height*chessboardSize.width);
     for(int i = 0; i < chessboardSize.height; ++i) {
         for(int j = 0; j < chessboardSize.width; ++j) {
             pattern.push_back(Point3f(chessSize*j,chessSize*i,0));
@@ -74,8 +80,7 @@ void StereoCalibrator::getChessboardPattern(const Size &chessboardSize, float ch
 
 bool StereoCalibrator::checkVectors(vector<Mat> &left, vector<Mat> &right) {
 
-    // empty?
-
+    //----- empty? -----
     int lenLeft  = left .size();
     int lenRight = right.size();
     if(lenLeft == 0 || lenRight == 0) {
@@ -83,8 +88,7 @@ bool StereoCalibrator::checkVectors(vector<Mat> &left, vector<Mat> &right) {
         return false;
     }
 
-    // same lenght?
-
+    //----- same lenght? -----
     if(lenLeft != lenRight) {
         cout << "Warning! The numer of images from left camera\n" <<
                 "does not match the number of images from right camera.\n" <<
@@ -93,9 +97,7 @@ bool StereoCalibrator::checkVectors(vector<Mat> &left, vector<Mat> &right) {
         lenLeft < lenRight ? right.resize(lenLeft) : left.resize(lenRight);
     }
 
-    // same sizes?
-
-    // TODO: keep the mode among the sizes
+    //----- same sizes? -----
     int lenght = left.size();
     Size size = left[0].size();
     for(int i = 0; i < lenght; ++i) {
@@ -114,16 +116,9 @@ bool StereoCalibrator::checkVectors(vector<Mat> &left, vector<Mat> &right) {
     return true;
 }
 
-StereoCalibrator* StereoCalibrator::setChessboardParams(cv::Size &chessboardSize, float chessSize) {
-    this->chessboardSize.width  = chessboardSize.width;
-    this->chessboardSize.height = chessboardSize.height;
-    this->chessSize = chessSize;
-
-    return this;
-}
 
 bool StereoCalibrator::saveCalibration(const string &fileName) {
-    FileStorage fs(fileName, FileStorage::WRITE);
+    FileStorage fs(fileName, FileStorage::WRITE);   // opencv file I/O class
     if(!fs.isOpened())
         return false;
 
@@ -143,7 +138,7 @@ bool StereoCalibrator::saveCalibration(const string &fileName) {
 }
 
 bool StereoCalibrator::loadCalibration(const string &fileName) {
-    FileStorage fs(fileName, FileStorage::READ);
+    FileStorage fs(fileName, FileStorage::READ);    // opencv file I/O class
     if(!fs.isOpened())
         return false;
 

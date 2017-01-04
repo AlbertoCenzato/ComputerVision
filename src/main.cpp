@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 
     //----- compute depth -----
     bool tuneParams = parser.has("tune");
-    DepthComputer dptComputer = DepthComputer(CALIB_FILE, tuneParams);
+    DepthComputer dptComputer(CALIB_FILE, tuneParams);
 
     Mat rectLeft, image3d;
 
@@ -127,7 +127,7 @@ bool calibrateCameras(ImageLoader &loader) {
 
         cout << "Loading images for calibration..." << endl;
 
-        if(loader.get(pathLeft,left) && loader.get(pathRight,right)) {
+        if (loader.get(pathLeft,left) && loader.get(pathRight,right)) {
             cout << "Images loaded successfully!" << endl;
             ch = 'q';
         }
@@ -136,15 +136,12 @@ bool calibrateCameras(ImageLoader &loader) {
                  << "Would you like to retry? [y/n]" << endl;
             cin >> ch;
             cin.ignore(25,'\n');
-            if(ch == 'n')
+            if (ch == 'n')
                 return false;
-            else
-                ch = 'a';
         }
-    } while(ch != 'q' && ch != 'Q');
+    } while (ch != 'q' && ch != 'Q');
 
-    StereoCalibrator calib = StereoCalibrator(size, 12);
-
+    StereoCalibrator calib(size);
 
     auto begin = chrono::high_resolution_clock::now();
     cout << "Re-projection error: " << calib.compute(left, right) << endl;

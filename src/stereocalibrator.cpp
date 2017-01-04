@@ -7,15 +7,14 @@ using namespace cv;
 
 // ----- Constructor -----
 
-StereoCalibrator::StereoCalibrator(cv::Size &chessboardSize, float chessSize) {
-    setChessboardParams(chessboardSize, chessSize);
+StereoCalibrator::StereoCalibrator(cv::Size &chessboardSize) {
+    setChessboardSize(chessboardSize);
 }
 
 // ----- Public member functions -----
-void StereoCalibrator::setChessboardParams(cv::Size &chessboardSize, float chessSize) {
+void StereoCalibrator::setChessboardSize(cv::Size &chessboardSize) {
     this->chessboardSize.width  = chessboardSize.width;
     this->chessboardSize.height = chessboardSize.height;
-    this->chessSize = chessSize;
 }
 
 double StereoCalibrator::compute(vector<Mat> &left, vector<Mat> &right, bool skipCheck) {
@@ -30,7 +29,7 @@ double StereoCalibrator::compute(vector<Mat> &left, vector<Mat> &right, bool ski
     int lenght = left.size();
 
     vector<Point3f> pattern(0);
-    getChessboardPattern(patternSize, chessSize, pattern);
+    getChessboardPattern(patternSize, pattern);
 
     vector<vector<Point3f> > objectPoints(lenght);
     for(int i = 0; i < lenght; ++i) {
@@ -68,12 +67,12 @@ double StereoCalibrator::compute(vector<Mat> &left, vector<Mat> &right, bool ski
     return error;
 }
 
-void StereoCalibrator::getChessboardPattern(const Size &chessboardSize, float chessSize, vector<Point3f> &pattern) {
+void StereoCalibrator::getChessboardPattern(const Size &chessboardSize, vector<Point3f> &pattern) {
 
     pattern.clear();
     for(int i = 0; i < chessboardSize.height; ++i) {
         for(int j = 0; j < chessboardSize.width; ++j) {
-            pattern.push_back(Point3f(chessSize*j,chessSize*i,0));
+            pattern.push_back(Point3f(j,i,0));
         }
     }
 }

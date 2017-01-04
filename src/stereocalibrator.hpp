@@ -9,9 +9,9 @@ class StereoCalibrator
 
 public:
 
-    StereoCalibrator(cv::Size &chessboardSize, float chessSize);
+    StereoCalibrator(cv::Size &chessboardSize);
 
-    void setChessboardParams(cv::Size &chessboardSize, float chessSize);
+    void setChessboardSize(cv::Size &chessboardSize);
     double compute(std::vector<cv::Mat> &left, std::vector<cv::Mat> &right, bool skipCheck = false);
 
     bool saveCalibration(const std::string &fileName);
@@ -19,11 +19,10 @@ public:
 
 
     static bool checkVectors(std::vector<cv::Mat> &left, std::vector<cv::Mat> &right);
-    static void getChessboardPattern(const cv::Size &chessboardSize, float chessSize, std::vector<cv::Point3f> &pattern);
+    static void getChessboardPattern(const cv::Size &chessboardSize, std::vector<cv::Point3f> &pattern);
 
 private:
 
-    float chessSize;
     cv::Size chessboardSize;
     cv::Mat cameraMatrix1, distCoeffs1, cameraMatrix2, distCoeffs2;
     cv::Mat R1, R2, P1, P2, Q;

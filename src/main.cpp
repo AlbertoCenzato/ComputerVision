@@ -97,6 +97,12 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+/**
+ * @brief calibrateCameras performs user interactions and uses StereoCalibrator
+ *        class to calibrate the stereo cameras
+ * @param loader
+ * @return
+ */
 bool calibrateCameras(ImageLoader &loader) {
 
     cout << "Please provide chessboard pattern width." << endl;
@@ -153,6 +159,12 @@ bool calibrateCameras(ImageLoader &loader) {
     return true;
 }
 
+/**
+ * @brief matToPointCloud converts an OpenCV depth map to a PCL point cloud
+ * @param depthMap
+ * @param image RGB information for the depth map
+ * @param cloud output point cloud
+ */
 void matToPointCloud(const Mat &depthMap, const Mat &image, PointCloud<PointXYZRGB>::Ptr cloud) {
 
     cloud->clear();

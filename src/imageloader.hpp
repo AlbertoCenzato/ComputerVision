@@ -4,6 +4,12 @@
 #include "global_includes.hpp"
 #include <opencv2/opencv.hpp>
 
+
+/**
+ * @brief The ImageLoader class extends VideoCapture class adding
+ *        the possibility to load an image sequence from multiple
+ *        files in a vector
+ */
 class ImageLoader : public cv::VideoCapture
 {
 public:

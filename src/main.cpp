@@ -170,8 +170,7 @@ void matToPointCloud(const Mat &depthMap, const Mat &image, PointCloud<PointXYZR
 
             // removing nan and infinity valued points for visualization
             if(isinf(position[2]) || isinf(position[1]) || isinf(position[0]) ||
-               isnan(position[2]) || isnan(position[1]) || isnan(position[0]) ||
-               position[2] == 0)
+               isnan(position[2]) || isnan(position[1]) || isnan(position[0]))
                 continue;
 
             Vec3b color    = image.at<Vec3b>(i,j);

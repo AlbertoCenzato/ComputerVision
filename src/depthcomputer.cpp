@@ -2,9 +2,9 @@
 
 #include <math.h>
 
-#include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
-#include "extra-module/disparity_filter.hpp"
+#include <opencv2/imgproc.hpp>
+
 
 #include <pcl/visualization/pcl_visualizer.h>		// for PCL visualizer
 #include <pcl/visualization/histogram_visualizer.h>	// for histogram visualization
@@ -19,7 +19,8 @@ using namespace cv;
 using namespace pcl;
 
 const string DepthComputer::DISPARITY_WINDOW   = "Disparity map";
-const string DepthComputer::TRACKBAR_WINDOW    = "Stereo matcher parameters";
+const string DepthComputer::TRACKBAR_MATCHER   = "Stereo matcher parameters";
+const string DepthComputer::TRACKBAR_FILTER    = "Stereo filter parameters";
 const string DepthComputer::STEREO_PARAMS_FILE = "stereo_params.xml";
 
 // ----- Constructors -----
@@ -63,19 +64,39 @@ void DepthComputer::compute(const Mat &left, const Mat &right, Mat &rectLeft, Ma
     namedWindow(DISPARITY_WINDOW, WINDOW_NORMAL);
 
     if(tuneParams) {
-        tune(rectLeft, rectRight, disparity);
+        cout << "Tuning disparity matcher parameters..." << endl;
+        tuneMatcher(rectLeft, rectRight, disparity);
     }
     else {
+        cout << "Computing disparity match..." << endl;
         matcher->compute(rectLeft,rectRight,disparity);
     }
 
-    Ptr<StereoMatcher> right_matcher = ximgproc::createRightMatcher(matcher);
-    right_matcher->compute(rectLeft,rectRight, disparity_right);
 
-    Ptr<ximgproc::DisparityWLSFilter> wls_filter = ximgproc::createDisparityWLSFilter(matcher);
-    wls_filter->filter(disparity,rectLeft,disparity_filtered,disparity_right);
+    disparity.copyTo(disparity_filtered);
+    if (tuneParams) {
+        cout << "Tuning post filtering..." << endl;
+        Ptr<StereoMatcher> right_matcher = ximgproc::createRightMatcher(matcher);
+        right_matcher->setSpeckleRange(speckleRange);
+        right_matcher->setSpeckleWindowSize(speckleWindowSize);
+        right_matcher->setDisp12MaxDiff(disp12MaxDiff);
+        right_matcher->compute(rectLeft,rectRight, disparity_right);
+        tunePostFilter(disparity,rectLeft,disparity_filtered,disparity_right);
+    }
+    else if (postFilter == 1){
+        cout << "Performing post filtering step..." << endl;
+        Ptr<StereoMatcher> right_matcher = ximgproc::createRightMatcher(matcher);
+        right_matcher->setSpeckleRange(speckleRange);
+        right_matcher->setSpeckleWindowSize(speckleWindowSize);
+        right_matcher->setDisp12MaxDiff(disp12MaxDiff);
+        right_matcher->compute(rectLeft,rectRight, disparity_right);
+        wls_filter->filter(disparity,rectLeft,disparity_filtered,disparity_right);
+    }
 
-    normalize(disparity, disparity, 0, 255, CV_MINMAX, CV_8U);
+    normalize(disparity_filtered, disparity_filtered, 0, 255, CV_MINMAX, CV_8U);
+
+    imshow(DISPARITY_WINDOW, disparity_filtered);
+    waitKey(100);
     reprojectImageTo3D(disparity_filtered, image3d, Q, false);
 }
 
@@ -131,6 +152,13 @@ bool DepthComputer::loadParams(const string &fileName) {
     fs["speckleWindowSize"] >> speckleWindowSize;
     fs["speckleRange"     ] >> speckleRange;
 
+    fs["lambda"           ] >> lambda;
+    fs["sigmaColor"       ] >> sigmaColor;
+    fs["depthDiscRadius"  ] >> depthDiscRadius;
+    fs["lrcThresh"        ] >> lrcThresh;
+
+    fs["postFilter"       ] >> postFilter;
+
     fs.release();
     return true;
 }
@@ -153,6 +181,13 @@ bool DepthComputer::saveParams(const string &fileName) {
     fs << "speckleWindowSize" << speckleWindowSize;
     fs << "speckleRange"      << speckleRange;
 
+    fs << "lambda"            << lambda;
+    fs << "sigmaColor"        << sigmaColor;
+    fs << "depthDiscRadius"   << depthDiscRadius;
+    fs << "lrcThresh"         << lrcThresh;
+
+    fs << "postFilter"        << postFilter;
+
     fs.release();
     return true;
 }
@@ -173,21 +208,27 @@ void DepthComputer::constructor(bool tuneParams) {
     matcher->setDisp12MaxDiff(disp12MaxDiff);
     matcher->setP1(p1);
     matcher->setP2(p2);
+
+    wls_filter = ximgproc::createDisparityWLSFilter(matcher);
+    wls_filter->setLambda(lambda);
+    wls_filter->setSigmaColor(sigmaColor/10);
+    wls_filter->setDepthDiscontinuityRadius(depthDiscRadius);
+    wls_filter->setLRCthresh(lrcThresh);
 }
 
-void DepthComputer::tune(const Mat &rectLeft, const Mat &rectRight, Mat &disparity) {
+void DepthComputer::tuneMatcher(const Mat &rectLeft, const Mat &rectRight, Mat &disparity) {
 
-    namedWindow(TRACKBAR_WINDOW,  WINDOW_NORMAL);
-    createTrackbar("Min disparities",   TRACKBAR_WINDOW, &minDisparities,    1024, on_trackbar, this);
-    createTrackbar("Num disparities",   TRACKBAR_WINDOW, &numDisparities,    1024, on_trackbar, this);
-    createTrackbar("Block size",        TRACKBAR_WINDOW, &blockSize,         41,   on_trackbar, this);
-    createTrackbar("P1",                TRACKBAR_WINDOW, &p1,                3000, on_trackbar, this);
-    createTrackbar("P2",                TRACKBAR_WINDOW, &p2,                3000, on_trackbar, this);
-    createTrackbar("PreFilterCap",      TRACKBAR_WINDOW, &preFilterCap,      500,  on_trackbar, this);
-    createTrackbar("SpeckleRange",      TRACKBAR_WINDOW, &speckleRange,      10,   on_trackbar, this);
-    createTrackbar("SpeckleWindowSize", TRACKBAR_WINDOW, &speckleWindowSize, 300,  on_trackbar, this);
-    createTrackbar("UniquenessRatio",   TRACKBAR_WINDOW, &uniquenessRatio,   100,  on_trackbar, this);
-    createTrackbar("disp12MaxDiff",     TRACKBAR_WINDOW, &disp12MaxDiff,     500,  on_trackbar, this);
+    namedWindow(TRACKBAR_MATCHER,  WINDOW_NORMAL);
+    createTrackbar("Min disparities",   TRACKBAR_MATCHER, &minDisparities,    1024, on_trackbar_matcher, this);
+    createTrackbar("Num disparities",   TRACKBAR_MATCHER, &numDisparities,    1024, on_trackbar_matcher, this);
+    createTrackbar("Block size",        TRACKBAR_MATCHER, &blockSize,         41,   on_trackbar_matcher, this);
+    createTrackbar("P1",                TRACKBAR_MATCHER, &p1,                3000, on_trackbar_matcher, this);
+    createTrackbar("P2",                TRACKBAR_MATCHER, &p2,                3000, on_trackbar_matcher, this);
+    createTrackbar("PreFilterCap",      TRACKBAR_MATCHER, &preFilterCap,      500,  on_trackbar_matcher, this);
+    createTrackbar("SpeckleRange",      TRACKBAR_MATCHER, &speckleRange,      100,  on_trackbar_matcher, this);
+    createTrackbar("SpeckleWindowSize", TRACKBAR_MATCHER, &speckleWindowSize, 300,  on_trackbar_matcher, this);
+    createTrackbar("UniquenessRatio",   TRACKBAR_MATCHER, &uniquenessRatio,   100,  on_trackbar_matcher, this);
+    createTrackbar("disp12MaxDiff",     TRACKBAR_MATCHER, &disp12MaxDiff,     500,  on_trackbar_matcher, this);
 
     char ch;
     Mat disparity_norm;
@@ -203,12 +244,9 @@ void DepthComputer::tune(const Mat &rectLeft, const Mat &rectRight, Mat &dispari
 
     } while (ch != 'q' && ch != 'Q');
 
-    waitKey(100);
-
     do {
         cout << "Save stereo matcher parameters? [y/n]" << endl;
-        ch = waitKey(0);
-        //cin.ignore(25,'\n');
+        cin >> ch;
     } while (ch != 'Y' && ch != 'y' && ch != 'N' && ch != 'n');
 
     if(ch == 'y' || ch == 'Y') {
@@ -216,26 +254,83 @@ void DepthComputer::tune(const Mat &rectLeft, const Mat &rectRight, Mat &dispari
            cerr << "Error! Unable to save parameters" << endl;
     }
 
-    destroyWindow(TRACKBAR_WINDOW);
+    destroyWindow(TRACKBAR_MATCHER);
 }
 
-void DepthComputer::on_trackbar(int pos, void *obj) {
+void DepthComputer::tunePostFilter(const Mat &disparity, const Mat &rectLeft, Mat &disparity_filtered, const Mat &disparity_right) {
 
-    DepthComputer *self = (DepthComputer*)obj;
+    namedWindow(TRACKBAR_FILTER,  WINDOW_NORMAL);
+    createTrackbar("Enable post filter", TRACKBAR_FILTER, &postFilter,      1,     on_trackbar_filter, this);
+    createTrackbar("Lambda",             TRACKBAR_FILTER, &lambda,          10000, on_trackbar_filter, this);
+    createTrackbar("Sigma color",        TRACKBAR_FILTER, &sigmaColor,      100,   on_trackbar_filter, this);
+    createTrackbar("Depth disc. radius", TRACKBAR_FILTER, &depthDiscRadius, 100,   on_trackbar_filter, this);
+    createTrackbar("LRC threshold",      TRACKBAR_FILTER, &lrcThresh,       100,   on_trackbar_filter, this);
 
-    if(self->numDisparities%16 != 0)
-        self->numDisparities += 16 - self->numDisparities%16;
-    if(self->blockSize % 2 == 0)
-        self->blockSize++;
 
-    self->matcher = StereoSGBM::create(self->minDisparities,self->numDisparities,self->blockSize);
-    self->matcher->setPreFilterCap(self->preFilterCap);
-    self->matcher->setSpeckleRange(self->speckleRange);
-    self->matcher->setSpeckleWindowSize(self->speckleWindowSize);
-    self->matcher->setUniquenessRatio(self->uniquenessRatio);
-    self->matcher->setDisp12MaxDiff(self->disp12MaxDiff);
-    self->matcher->setP1(self->p1);
-    self->matcher->setP2(self->p2);
+    char ch;
+    Mat disparity_filtered_norm;
+    do {
+        cout << "Post filtering: " << (postFilter == 1 ? "ON" : "OFF") << endl;
+        if (postFilter == 1) {
+            wls_filter->filter(disparity,rectLeft,disparity_filtered,disparity_right);
+        }
+        else {
+            disparity.copyTo(disparity_filtered);
+        }
+
+        normalize(disparity_filtered, disparity_filtered_norm, 0, 255, CV_MINMAX, CV_8U);
+        imshow(DISPARITY_WINDOW, disparity_filtered_norm);
+
+        cout << "Press q to confirm filter parameters and continue, r to recompute the scene." << endl;
+        ch = waitKey(0);
+
+    } while (ch != 'q' && ch != 'Q');
+
+    do {
+        cout << "Save stereo filter parameters? [y/n]" << endl;
+        cin >> ch;
+    } while (ch != 'Y' && ch != 'y' && ch != 'N' && ch != 'n');
+
+    if(ch == 'y' || ch == 'Y') {
+       if(!saveParams(STEREO_PARAMS_FILE))
+           cerr << "Error! Unable to save parameters" << endl;
+    }
+
+    destroyWindow(TRACKBAR_FILTER);
+}
+
+void DepthComputer::on_trackbar_matcher(int pos, void *o) {
+
+    DepthComputer *obj = (DepthComputer*)o;
+
+    if(obj->numDisparities%16 != 0)
+        obj->numDisparities += 16 - obj->numDisparities%16;
+    if(obj->blockSize % 2 == 0)
+        obj->blockSize++;
+
+    //self->matcher = StereoSGBM::create(self->minDisparities,self->numDisparities,self->blockSize);
+    obj->matcher->setMinDisparity(obj->minDisparities);
+    obj->matcher->setNumDisparities(obj->numDisparities);
+    obj->matcher->setBlockSize(obj->blockSize);
+    obj->matcher->setPreFilterCap(obj->preFilterCap);
+    obj->matcher->setSpeckleRange(obj->speckleRange);
+    obj->matcher->setSpeckleWindowSize(obj->speckleWindowSize);
+    obj->matcher->setUniquenessRatio(obj->uniquenessRatio);
+    obj->matcher->setDisp12MaxDiff(obj->disp12MaxDiff);
+    obj->matcher->setP1(obj->p1);
+    obj->matcher->setP2(obj->p2);
+}
+
+void DepthComputer::on_trackbar_filter(int pos, void *o) {
+
+    DepthComputer *obj = (DepthComputer*)o;
+
+    if(obj->postFilter == 1) {
+        obj->wls_filter->setLambda(obj->lambda);
+        obj->wls_filter->setSigmaColor(obj->sigmaColor/10);
+        obj->wls_filter->setDepthDiscontinuityRadius(obj->depthDiscRadius);
+        obj->wls_filter->setLRCthresh(obj->lrcThresh);
+    }
 }
 
 

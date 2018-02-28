@@ -29,7 +29,7 @@ int main (int argc, char** argv) {
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
 	// Load point cloud from .pcd file:
-  	if (pcl::io::loadPCDFile<pcl::PointXYZ> ("../dataset/table_scene_lms400.pcd",*cloud) == -1)	{
+  	if (pcl::io::loadPCDFile<pcl::PointXYZ> ("../dataset_lab1/table_scene_lms400.pcd",*cloud) == -1)	{
 		PCL_ERROR ("Couldn't read the pcd file \n");
 		return (-1);
 	}

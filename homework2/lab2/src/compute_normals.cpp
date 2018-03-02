@@ -59,25 +59,27 @@ int main (int argc, char** argv) {
 	int normalsVisualizationStep = 100; // to visualize a normal every normalsVisualizationStep
 	float normalsScale = 0.02;
 
-	pcl::visualization::PCLVisualizer viewer_1("Radius 0.03");
-	viewer_1.setBackgroundColor(0.0, 0.0, 0.5);
-	viewer_1.addCoordinateSystem(0.1);
-	viewer_1.initCameraParameters();
-	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
-	viewer_1.addPointCloud<pcl::PointXYZRGB>(cloud, rgb, "input_cloud");
-	viewer_1.addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(cloud, cloud_normals_1, normalsVisualizationStep, normalsScale, "normals");
+	pcl::visualization::PCLVisualizer viewer("Point clouds");
+	viewer.setBackgroundColor(0.0, 0.0, 0.5);
+	viewer.addCoordinateSystem(0.1);
+	viewer.initCameraParameters();
 
-    pcl::visualization::PCLVisualizer viewer_2("Radius 0.002");
-    viewer_2.setBackgroundColor(0.0, 0.0, 0.5);
-    viewer_2.addCoordinateSystem(0.1);
-    viewer_2.initCameraParameters();
-    viewer_2.addPointCloud<pcl::PointXYZRGB>(cloud, rgb, "input_cloud");
-    viewer_2.addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(cloud, cloud_normals_2, normalsVisualizationStep, normalsScale, "normals");
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb1(cloud);
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2(cloud);
+
+	// Visualization in different viewports:
+	int v1(0), v2(0);
+	viewer.createViewPort (0.0, 0.0, 0.5, 1, v1);
+	viewer.createViewPort (0.5, 0.0, 1.0, 1, v2);
+
+	viewer.addPointCloud<pcl::PointXYZRGB> (cloud, rgb1, "cloud1", v1);
+	viewer.addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(cloud, cloud_normals_1, normalsVisualizationStep, normalsScale, "normals1", v1);
+	viewer.addPointCloud<pcl::PointXYZRGB> (cloud, rgb2, "cloud2", v2);
+	viewer.addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(cloud, cloud_normals_2, normalsVisualizationStep, normalsScale, "normals2", v2);
 
 	std::cout << "Visualization...: "<< std::endl;
-	while (!viewer_1.wasStopped() && !viewer_2.wasStopped()) {
-		viewer_1.spin();
-        viewer_2.spin();
+	while (!viewer.wasStopped()) {
+		viewer.spin();
 	}
 
 	return 0;

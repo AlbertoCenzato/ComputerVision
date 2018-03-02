@@ -1,4 +1,4 @@
-*
+/*
  * dataset_visualizer.cpp
  *
  *  Created on: Apr 2, 2012
@@ -22,25 +22,25 @@ main (int argc, char** argv)
 	pcl::PointCloud<PointT>::Ptr cloud4 (new pcl::PointCloud<PointT>);
 
 	// Load point cloud from .pcd file:
-	if (pcl::io::loadPCDFile<PointT> ("../dataset/minimouse1.pcd", *cloud1) == -1) //* load the file
+	if (pcl::io::loadPCDFile<PointT> ("../dataset_lab3/minimouse1.pcd", *cloud1) == -1) //* load the file
 	{
 		PCL_ERROR ("Couldn't read the pcd file \n");
 		return (-1);
 	}
 	// Load point cloud from .pcd file:
-	if (pcl::io::loadPCDFile<PointT> ("../dataset/minimouse2.pcd", *cloud2) == -1) //* load the file
+	if (pcl::io::loadPCDFile<PointT> ("../dataset_lab3/minimouse2.pcd", *cloud2) == -1) //* load the file
 	{
 		PCL_ERROR ("Couldn't read the pcd file \n");
 		return (-1);
 	}
 	// Load point cloud from .pcd file:
-	if (pcl::io::loadPCDFile<PointT> ("../dataset/minimouse3.pcd", *cloud3) == -1) //* load the file
+	if (pcl::io::loadPCDFile<PointT> ("../dataset_lab3/minimouse3.pcd", *cloud3) == -1) //* load the file
 	{
 		PCL_ERROR ("Couldn't read the pcd file \n");
 		return (-1);
 	}
 	// Load point cloud from .pcd file:
-	if (pcl::io::loadPCDFile<PointT> ("../dataset/minimouse4.pcd", *cloud4) == -1) //* load the file
+	if (pcl::io::loadPCDFile<PointT> ("../dataset_lab3/minimouse4.pcd", *cloud4) == -1) //* load the file
 	{
 		PCL_ERROR ("Couldn't read the pcd file \n");
 		return (-1);

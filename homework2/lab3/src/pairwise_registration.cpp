@@ -370,5 +370,47 @@ int main (int argc, char** argv)
     pcl::io::savePCDFile (ss.str (), *result, true);
 
   }
+
+/*
+    // Visualization:
+    pcl::visualization::PCLVisualizer viewer("PCL Viewer");
+
+    // Draw output point cloud:
+    viewer.setBackgroundColor (0, 0, 0);
+    viewer.addCoordinateSystem (0.1);
+    viewer.addText ("Clouds", 10, 10);
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb1(cloud1);
+    viewer.addPointCloud<PointT> (cloud1, rgb1, "cloud1");
+
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb2(cloud2);
+    viewer.addPointCloud<PointT> (cloud2, rgb2, "cloud2");
+
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb3(cloud3);
+    viewer.addPointCloud<PointT> (cloud3, rgb3, "cloud3");
+
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb4(cloud4);
+    viewer.addPointCloud<PointT> (cloud4, rgb4, "cloud4");
+
+    // Visualization in different viewports:
+    pcl::visualization::PCLVisualizer viewer2("PCL Viewer");
+    int v1(0), v2(0), v3(0), v4(0);
+    viewer2.createViewPort (0.0, 0.0, 0.5, 0.5, v1);
+    viewer2.createViewPort (0.5, 0.0, 1.0, 0.5, v2);
+    viewer2.createViewPort (0.0, 0.5, 0.5, 1.0, v3);
+    viewer2.createViewPort (0.5, 0.5, 1.0, 1.0, v4);
+
+    viewer2.setBackgroundColor (0, 0, 0);
+    viewer2.addCoordinateSystem (0.1);
+    viewer2.addPointCloud<PointT> (cloud1, rgb1, "cloud1", v1);
+    viewer2.addPointCloud<PointT> (cloud2, rgb2, "cloud2", v2);
+    viewer2.addPointCloud<PointT> (cloud3, rgb3, "cloud3", v3);
+    viewer2.addPointCloud<PointT> (cloud4, rgb4, "cloud4", v4);
+
+    // Loop for visualization (so that the visualizers are continuously updated):
+    std::cout << "Visualization... "<< std::endl;
+    while (!viewer.wasStopped ())
+    {
+        viewer.spin ();
+    }*/
 }
 /* ]--- */

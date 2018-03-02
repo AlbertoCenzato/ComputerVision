@@ -34,7 +34,7 @@ void pp_callback (const pcl::visualization::PointPickingEvent& event, void* args
 }
 
 
-pcl::PointCloud<pcl::PointNormal>::Ptr computeNormals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud) {
+pcl::PointCloud<pcl::PointNormal>::Ptr computeNormals(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud) {
     // Create the normal estimation class, and pass the input dataset to it
     pcl::NormalEstimationOMP<pcl::PointXYZRGB, pcl::PointNormal> ne;
     ne.setInputCloud(cloud);
@@ -61,7 +61,7 @@ pcl::PointCloud<pcl::PointNormal>::Ptr computeNormals(pcl::PointCloud<pcl::Point
 }
 
 
-pcl::PointCloud<pcl::PointWithScale>::Ptr computeSIFT(pcl::PointCloud<pcl::PointNormal>::Ptr &cloud_normals) {
+pcl::PointCloud<pcl::PointWithScale>::Ptr computeSIFT(pcl::PointCloud<pcl::PointNormal>::Ptr cloud_normals) {
     const float min_scale = 0.01f;
     const int n_octaves = 3;
     const int n_scales_per_octave = 4;
@@ -80,7 +80,7 @@ pcl::PointCloud<pcl::PointWithScale>::Ptr computeSIFT(pcl::PointCloud<pcl::Point
 }
 
 
-pcl::PointCloud<pcl::FPFHSignature33>::Ptr computeFPFH(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<pcl::PointNormal>::Ptr &cloud_normals) {
+pcl::PointCloud<pcl::FPFHSignature33>::Ptr computeFPFH(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::PointNormal>::Ptr cloud_normals) {
     // Create the FPFH estimation class, and pass the input dataset+normals to it
     pcl::FPFHEstimationOMP<pcl::PointXYZRGB, pcl::PointNormal, pcl::FPFHSignature33> fpfh;
     fpfh.setInputCloud(cloud);

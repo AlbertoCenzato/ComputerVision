@@ -12,7 +12,7 @@
 
 
 template<typename PointT>
-typename pcl::PointCloud<PointT>::Ptr downsampleCloud(const typename pcl::PointCloud<PointT>::Ptr& cloud, float lx, float ly, float lz) {
+typename pcl::PointCloud<PointT>::Ptr downsampleCloud(typename pcl::PointCloud<PointT>::Ptr cloud, float lx, float ly, float lz) {
     typename pcl::PointCloud<PointT>::Ptr cloud_out(new pcl::PointCloud<PointT>);
 
     pcl::VoxelGrid<PointT> vg;

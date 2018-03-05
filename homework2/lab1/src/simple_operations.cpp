@@ -22,7 +22,7 @@ int main (int argc, char** argv)
 
 	std::cout << "Loaded " << cloud->width * cloud->height
 			  << " data points from the pcd file. " << std::endl;
-	std::cerr << "PointCloud before filtering: " << cloud->width * cloud->height
+	std::cerr << "Cloud before filtering: " << cloud->width * cloud->height
 			  << " data points (" << pcl::getFieldsList (*cloud) << ")." << std::endl;
 
 	// Create two new clouds from the original one:

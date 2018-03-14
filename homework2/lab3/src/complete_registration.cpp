@@ -20,16 +20,14 @@ using CloudNormal = pcl::PointCloud<pcl::PointNormal>;
 using pcl::visualization::PointCloudColorHandlerGenericField;
 
 template<typename PointT>
-using Data  = std::vector<PCD<PointT>, Eigen::aligned_allocator<PCD<PointT>>>;
+using Data  = std::vector<lab3::PCD<PointT>, Eigen::aligned_allocator<lab3::PCD<PointT>>>;
 
 
 void correspondenceEstimation(Cloud::ConstPtr source, Cloud::ConstPtr target, Eigen::Matrix4f &transformation);
 
-//CloudNormal::Ptr icpRegistration(CloudNormal::ConstPtr source, CloudNormal::ConstPtr target);
+Cloud::Ptr method1(const vector<Cloud::Ptr> &data, lab3::Visualizer &visualizer);
 
-Cloud::Ptr method1(const vector<Cloud::Ptr> &data, Visualizer &visualizer);
-
-Cloud::Ptr method2(const vector<Cloud::Ptr> &data, Visualizer &visualizer);
+Cloud::Ptr method2(const vector<Cloud::Ptr> &data, lab3::Visualizer &visualizer);
 
 pcl::PointCloud<pcl::PointNormal>::Ptr computeNormals(Cloud::ConstPtr cloud);
 
@@ -38,7 +36,7 @@ pcl::PointCloud<pcl::PointNormal>::Ptr computeNormals(Cloud::ConstPtr cloud);
 
 int main(int argc, char** argv) {
 
-    auto data = loadData<Cloud::PointType>(argc, argv, true);
+    auto data = lab3::loadData<Cloud::PointType>(argc, argv, true);
 
     // Check user input
     if (data.empty()) {
@@ -53,7 +51,7 @@ int main(int argc, char** argv) {
     for (const auto &c : data)
         clouds.push_back(c.cloud);
 
-    Visualizer visualizer("Comparison between two registration methods");
+    lab3::Visualizer visualizer("Comparison between two registration methods");
 
     auto cloud_m1 = method1(clouds, visualizer);
 
@@ -65,7 +63,7 @@ int main(int argc, char** argv) {
 }
 
 
-Cloud::Ptr method1(const vector<Cloud::Ptr> &data, Visualizer &visualizer) {
+Cloud::Ptr method1(const vector<Cloud::Ptr> &data, lab3::Visualizer &visualizer) {
 
     Cloud::Ptr result(new Cloud);
     pcl::copyPointCloud(*data[0], *result);
@@ -94,7 +92,7 @@ Cloud::Ptr method1(const vector<Cloud::Ptr> &data, Visualizer &visualizer) {
         //auto registered = icpRegistration(tmp, result);
 
         Cloud::Ptr registered(new Cloud);
-        pairAlign<PointRepresentationCurv, Cloud::PointType>(tmp, result, registered, transform, visualizer);
+        lab3::pairAlign<lab3::PointRepresentationCurv, Cloud::PointType>(tmp, result, registered, transform, visualizer);
 
         *result += *registered;
     }
@@ -102,7 +100,7 @@ Cloud::Ptr method1(const vector<Cloud::Ptr> &data, Visualizer &visualizer) {
     return result;
 }
 
-Cloud::Ptr method2(const vector<Cloud::Ptr>& data, Visualizer &visualizer) {
+Cloud::Ptr method2(const vector<Cloud::Ptr>& data, lab3::Visualizer &visualizer) {
     Cloud::Ptr result(new Cloud);
     pcl::copyPointCloud(*data[0], *result);
 
@@ -121,7 +119,7 @@ Cloud::Ptr method2(const vector<Cloud::Ptr>& data, Visualizer &visualizer) {
         pcl::transformPointCloud(*cloud, *tmp, transform); //transform current pair into the global transform
 
         Cloud::Ptr registered(new Cloud);
-        pairAlign<PointRepresentationCurv, Cloud::PointType>(tmp, result, registered, transform, visualizer);
+        lab3::pairAlign<lab3::PointRepresentationCurv, Cloud::PointType>(tmp, result, registered, transform, visualizer);
 
         registeredClouds.push_back(registered);
     }
@@ -180,32 +178,3 @@ CloudNormal::Ptr computeNormals(Cloud::ConstPtr cloud) {
 
     return cloud_normals;
 }
-
-/*
-void visualize(CloudNormal::ConstPtr cloud1, CloudNormal::ConstPtr cloud2) {
-
-    PCLVisualizer viewer;
-
-    // Draw output point cloud:
-    viewer.setBackgroundColor(0, 0, 0);
-    viewer.addCoordinateSystem(0.1);
-    viewer.addText("Clouds", 10, 10);
-
-    int vp1, vp2;
-    viewer.createViewPort(0.0, 0.0, 0.5, 1.0, vp1);
-    viewer.createViewPort(0.5, 0.0, 1.0, 1.0, vp2);
-
-    PointCloudColorHandlerGenericField<CloudNormal::PointType> cloud1ColHandler(cloud1, "curvature");
-    viewer.addPointCloud<CloudNormal::PointType> (cloud1, cloud1ColHandler, "cloud1");
-
-    PointCloudColorHandlerGenericField<CloudNormal::PointType> cloud2ColHandler(cloud2, "curvature");
-    viewer.addPointCloud<CloudNormal::PointType> (cloud2, cloud2ColHandler, "cloud2");
-
-    // Loop for visualization (so that the visualizers are continuously updated):
-    std::cout << "Visualization... "<< std::endl;
-    while (!viewer.wasStopped()) {
-        viewer.spin();
-    }
-}
- */
-

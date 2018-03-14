@@ -70,7 +70,7 @@ using CloudWithNormals = pcl::PointCloud<pcl::PointNormal>;
 /* ---[ */
 int main (int argc, char** argv) {
 
-    auto data = loadData<Cloud::PointType>(argc, argv, true); // Load data
+    auto data = lab3::loadData<Cloud::PointType>(argc, argv, true); // Load data
 
     // Check user input
     if (data.empty()) {
@@ -82,7 +82,7 @@ int main (int argc, char** argv) {
     std::cout << std::endl;
 
     // Create a PCLVisualizer object
-    Visualizer visualizer("Pairwise Incremental Registration example");
+    lab3::Visualizer visualizer("Pairwise Incremental Registration example");
 
     Cloud::Ptr resultWithCurvature(new Cloud);
     Cloud::Ptr resultXYZ(new Cloud);
@@ -105,7 +105,7 @@ int main (int argc, char** argv) {
         PCL_INFO ("Aligning %s (%d) with %s (%d) using curvature.\n", data[i-1].f_name.c_str (), source->points.size (), data[i].f_name.c_str (), target->points.size ());
         std::cout << std::flush;
 
-        pairAlign<PointRepresentationCurv, Cloud::PointType>(source, target, temp, pairTransform, visualizer, true);
+        lab3::pairAlign<lab3::PointRepresentationCurv, Cloud::PointType>(source, target, temp, pairTransform, visualizer, true);
 
         pcl::transformPointCloud(*temp, *resultWithCurvature, GlobalTransformCurv); //transform current pair into the global transform
 
@@ -116,7 +116,7 @@ int main (int argc, char** argv) {
         PCL_INFO ("Aligning %s (%d) with %s (%d) without curvature.\n", data[i-1].f_name.c_str (), source->points.size (), data[i].f_name.c_str (), target->points.size ());
         std::cout << std::flush;
 
-        pairAlign<PointRepresentationXYZ, Cloud::PointType>(source, target, temp, pairTransform, visualizer, true);
+        lab3::pairAlign<lab3::PointRepresentationXYZ, Cloud::PointType>(source, target, temp, pairTransform, visualizer, true);
 
         pcl::transformPointCloud(*temp, *resultXYZ, GlobalTransformXYZ); //transform current pair into the global transform
 

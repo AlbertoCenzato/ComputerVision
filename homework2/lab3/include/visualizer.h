@@ -5,6 +5,7 @@
 #ifndef CV_HW2_LAB3_VISUALIZER_H
 #define CV_HW2_LAB3_VISUALIZER_H
 
+#include <sstream>
 #include <pcl/visualization/pcl_visualizer.h>
 
 using pcl::visualization::PointCloudColorHandlerGenericField;
@@ -14,93 +15,113 @@ using pcl::visualization::PointCloudColorHandlerCustom;
 class Visualizer {
 
 public:
-    Visualizer(int &argc, char** argv, const std::string &name) : vis(argc, argv, name) {
-        vis.createViewPort(0.0, 0.0, 0.5, 5.0, vpTopLeft);
-        vis.createViewPort(0.5, 0.0, 1.0, 5.0, vpBottomRight);
-        vis.createViewPort(0.0, 0.5, 0.5, 1.0, vpBottomLeft);
+    Visualizer(const std::string &name) : vis(name) {
+        vis.createViewPort(0.0, 0.5, 0.5, 1.0, vpTopLeft);
+        vis.createViewPort(0.5, 0.0, 1.0, 0.5, vpBottomRight);
+        vis.createViewPort(0.0, 0.0, 0.5, 0.5, vpBottomLeft);
         vis.createViewPort(0.5, 0.5, 1.0, 1.0, vpTopRight);
+
+        colors = { Color(255,   0,   0), // red
+                   Color(  0, 255,   0), // green
+                   Color(  0,   0, 255), // blue
+                   Color(255, 255, 255)};// white
     }
 
     /**
      * \brief Display source and target on the second viewport of the visualizer
      */
     template<typename PointT>
-    void showCloudsTopRight(const typename pcl::PointCloud<PointT>::Ptr cloud_target,
-                            const typename pcl::PointCloud<PointT>::Ptr cloud_source)
+    void showCloudsTopRight(std::initializer_list<typename pcl::PointCloud<PointT>::ConstPtr> clouds)
     {
-        showCloudsRight<PointT>(cloud_target, cloud_source, vpTopRight);
+        showCloudsRight<PointT>(vpTopRight, clouds);
     }
 
     /**
      * \brief Display source and target on the second viewport of the visualizer
      */
     template<typename PointT>
-    void showCloudsBottomRight(const typename pcl::PointCloud<PointT>::Ptr cloud_target,
-                               const typename pcl::PointCloud<PointT>::Ptr cloud_source)
+    void showCloudsBottomRight(std::initializer_list<typename pcl::PointCloud<PointT>::ConstPtr> clouds)
     {
-        showCloudsRight<PointT>(cloud_target, cloud_source, vpBottomRight);
+        showCloudsRight<PointT>(vpBottomRight, clouds);
     }
 
     /**
      * \brief Display source and target on the first viewport of the visualizer
      */
     template<typename PointT>
-    void showCloudsTopLeft(const typename pcl::PointCloud<PointT>::Ptr cloud_target,
-                           const typename pcl::PointCloud<PointT>::Ptr cloud_source)
+    void showCloudsTopLeft(std::initializer_list<typename pcl::PointCloud<PointT>::ConstPtr> clouds)
     {
-        showCloudsLeft<PointT>(cloud_target, cloud_source, vpTopLeft);
+        showCloudsLeft<PointT>(vpTopLeft, clouds);
     }
 
     /**
      * \brief Display source and target on the first viewport of the visualizer
      */
     template<typename PointT>
-    void showCloudsBottomLeft(const typename pcl::PointCloud<PointT>::Ptr cloud_target,
-                              const typename pcl::PointCloud<PointT>::Ptr cloud_source)
+    void showCloudsBottomLeft(std::initializer_list<typename pcl::PointCloud<PointT>::ConstPtr> clouds)
     {
-        showCloudsLeft<PointT>(cloud_target, cloud_source, vpBottomLeft);
+        showCloudsLeft<PointT>(vpBottomLeft, clouds);
     }
 
     template<typename PointT>
-    void showIterTop(const typename pcl::PointCloud<PointT>::Ptr cloudTarget,
-                     const typename pcl::PointCloud<PointT>::Ptr cloudSource)
+    void showIterTop(typename pcl::PointCloud<PointT>::ConstPtr cloudTarget,
+                     typename pcl::PointCloud<PointT>::ConstPtr cloudSource)
     {
         showIter<PointT>(cloudTarget, cloudSource, vpTopRight);
     }
 
     template<typename PointT>
-    void showIterBottom(const typename pcl::PointCloud<PointT>::Ptr cloudTarget,
-                        const typename pcl::PointCloud<PointT>::Ptr cloudSource)
+    void showIterBottom(typename pcl::PointCloud<PointT>::ConstPtr cloudTarget,
+                        typename pcl::PointCloud<PointT>::ConstPtr cloudSource)
     {
         showIter<PointT>(cloudTarget, cloudSource, vpBottomRight);
     }
 
+    void removeAllPointCloudsTopRight() {
+        vis.removeAllPointClouds(vpTopRight);
+    }
+
+    void removeAllPointCloudsBottomRight() {
+        vis.removeAllPointClouds(vpBottomRight);
+    }
+
+    void removeAllPointCloudsTopLeft() {
+        vis.removeAllPointClouds(vpTopLeft);
+    }
+
+    void removeAllPointCloudsBottomLeft() {
+        vis.removeAllPointClouds(vpBottomLeft);
+    }
+
 private:
+
+    struct Color {
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
+
+        Color() : r(0), g(0), b(0) {}
+        Color(uint8_t r, uint8_t g, uint8_t b) : r(r), g(g), b(b) {}
+    };
 
     pcl::visualization::PCLVisualizer vis;
     int vpTopLeft, vpTopRight, vpBottomLeft, vpBottomRight;
+    std::array<Color, 4> colors;
+
 
     template<typename PointT>
-    void showCloudsLeft(const typename pcl::PointCloud<PointT>::Ptr cloud_target,
-                        const typename pcl::PointCloud<PointT>::Ptr cloud_source, int vp)
+    void showCloudsLeft(int vp, const std::initializer_list<typename pcl::PointCloud<PointT>::ConstPtr> &clouds)
     {
-        std::string cloudTarget, cloudSource;
-        if (vp == vpBottomLeft) {
-            cloudTarget = "bottomLeft_target";
-            cloudSource = "bottomLeft_source";
-        }
-        else {
-            cloudTarget = "topLeft_target";
-            cloudSource = "topLeft_source";
-        }
+        vis.removeAllPointClouds(vp);
 
-        vis.removePointCloud(cloudTarget);
-        vis.removePointCloud(cloudSource);
-
-        PointCloudColorHandlerCustom<PointT> tgt_h (cloud_target, 255,   0, 0);
-        PointCloudColorHandlerCustom<PointT> src_h (cloud_source,   0, 255, 0);
-        vis.addPointCloud(cloud_target, tgt_h, cloudTarget, vp);
-        vis.addPointCloud(cloud_source, src_h, cloudSource, vp);
+        int colorIndex = 0;
+        for (const auto &cloud : clouds) {
+            std::stringstream cloudID;
+            cloudID << "viewport" << vp << "_" << "cloud" << colorIndex;
+            auto color = colors[(colorIndex++)%4];
+            PointCloudColorHandlerCustom<PointT> colorHandler(cloud, color.r, color.g, color.b);
+            vis.addPointCloud(cloud, colorHandler, cloudID.str(), vp);
+        }
 
         PCL_INFO ("Press q to begin the registration.\n");
         std::cout << std::flush;
@@ -109,39 +130,28 @@ private:
 
 
     template<typename PointT>
-    void showCloudsRight(const typename pcl::PointCloud<PointT>::Ptr cloud_target,
-                         const typename pcl::PointCloud<PointT>::Ptr cloud_source, int vp)
+    void showCloudsRight(int vp, const std::initializer_list<typename pcl::PointCloud<PointT>::ConstPtr> &clouds)
     {
-        std::string cloudTarget, cloudSource;
-        if (vp == vpBottomRight) {
-            cloudTarget = "bottomRight_target";
-            cloudSource = "bottomRight_source";
+        vis.removeAllPointClouds(vp);
+
+        int index = 0;
+        for (const auto &cloud : clouds) {
+            std::stringstream cloudID;
+            cloudID << "viewport" << vp << "_" << "cloud" << index++;
+
+            PointCloudColorHandlerGenericField<PointT> colorHandler(cloud, "curvature");
+            if (!colorHandler.isCapable())
+                PCL_WARN ("Cannot create curvature color handler!");
+
+            vis.addPointCloud(cloud, colorHandler, cloudID.str(), vp);
         }
-        else {
-            cloudTarget = "topRight_target";
-            cloudSource = "topRight_source";
-        }
-
-        vis.removePointCloud(cloudTarget);
-        vis.removePointCloud(cloudSource);
-
-        PointCloudColorHandlerGenericField<PointT> tgt_color_handler (cloud_target, "curvature");
-        if (!tgt_color_handler.isCapable ())
-            PCL_WARN ("Cannot create curvature color handler!");
-
-        PointCloudColorHandlerGenericField<PointT> src_color_handler (cloud_source, "curvature");
-        if (!src_color_handler.isCapable ())
-            PCL_WARN ("Cannot create curvature color handler!");
-
-        vis.addPointCloud (cloud_target, tgt_color_handler, cloudTarget, vp);
-        vis.addPointCloud (cloud_source, src_color_handler, cloudSource, vp);
 
         vis.spinOnce();
     }
 
     template<typename PointT>
-    void showIter(const typename pcl::PointCloud<PointT>::Ptr cloudTarget,
-                  const typename pcl::PointCloud<PointT>::Ptr cloudSource, int vp)
+    void showIter(typename pcl::PointCloud<PointT>::ConstPtr cloudTarget,
+                  typename pcl::PointCloud<PointT>::ConstPtr cloudSource, int vp)
     {
         std::string cloudTargetID, cloudSourceID;
         if (vp == vpBottomRight) {

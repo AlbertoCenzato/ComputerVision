@@ -31,8 +31,6 @@ Cloud::Ptr method2(const vector<Cloud::Ptr> &data, lab3::Visualizer &visualizer)
 
 pcl::PointCloud<pcl::PointNormal>::Ptr computeNormals(Cloud::ConstPtr cloud);
 
-//void visualize(CloudNormal::ConstPtr cloud1, CloudNormal::ConstPtr cloud2);
-
 
 int main(int argc, char** argv) {
 
@@ -53,7 +51,15 @@ int main(int argc, char** argv) {
 
     lab3::Visualizer visualizer("Comparison between two registration methods");
 
+    std::cout << "-------------------------------------------" << std::endl;
+    std::cout << "---------- Registering method 1 -----------" << std::endl;
+    std::cout << "-------------------------------------------" << std::endl;
+
     auto cloud_m1 = method1(clouds, visualizer);
+
+    std::cout << "-------------------------------------------" << std::endl;
+    std::cout << "---------- Registering method 2 -----------" << std::endl;
+    std::cout << "-------------------------------------------" << std::endl;
 
     auto cloud_m2 = method2(clouds, visualizer);
 
@@ -70,15 +76,12 @@ Cloud::Ptr method1(const vector<Cloud::Ptr> &data, lab3::Visualizer &visualizer)
 
     for (size_t i = 1; i < data.size(); ++i) {
 
-        const auto &cloud = data[i];
+        std::cout << "Correspondence estimation, cloud " << i << " vs clouds 0 + ... + " << i-1 << std::endl;
 
-        std::cout << "Unregistered clouds" << std::endl;
+        const auto &cloud = data[i];
 
         visualizer.showCloudsTopLeft<Cloud::PointType>({cloud, result});
 
-        std::cout << "Correspondence estimation" << std::endl;
-
-        //register cloudWithNormals with result
         Eigen::Matrix4f transform;
         correspondenceEstimation(cloud, result, transform);
 
@@ -87,15 +90,17 @@ Cloud::Ptr method1(const vector<Cloud::Ptr> &data, lab3::Visualizer &visualizer)
 
         visualizer.showCloudsTopLeft<Cloud::PointType>({tmp, result});
 
-        std::cout << "ICP registration" << std::endl;
-
-        //auto registered = icpRegistration(tmp, result);
+        std::cout << "ICP registration, cloud " << i << " vs clouds 0 + ... + " << i-1 << std::endl;
 
         Cloud::Ptr registered(new Cloud);
         lab3::pairAlign<lab3::PointRepresentationCurv, Cloud::PointType>(tmp, result, registered, transform, visualizer);
 
         *result += *registered;
     }
+
+    std::cout << "Final registration result" << std::endl;
+
+    visualizer.showCloudsTopLeft<Cloud::PointType>({result});
 
     return result;
 }
@@ -111,6 +116,10 @@ Cloud::Ptr method2(const vector<Cloud::Ptr>& data, lab3::Visualizer &visualizer)
     for (size_t i = 1; i < data.size(); ++i) {
         const auto &cloud = data[i];
 
+        std::cout << "Correspondence estimation, cloud 0 vs cloud " << i << std::endl;
+
+        visualizer.showCloudsBottomLeft<Cloud::PointType>({result, cloud});
+
         //register cloud with result
         Eigen::Matrix4f transform;
         correspondenceEstimation(cloud, result, transform);
@@ -118,8 +127,12 @@ Cloud::Ptr method2(const vector<Cloud::Ptr>& data, lab3::Visualizer &visualizer)
         Cloud::Ptr tmp(new Cloud);
         pcl::transformPointCloud(*cloud, *tmp, transform); //transform current pair into the global transform
 
+        visualizer.showCloudsBottomLeft<Cloud::PointType>({result, tmp});
+
+        std::cout << "ICP registration, cloud 0 vs cloud " << i << std::endl;
+
         Cloud::Ptr registered(new Cloud);
-        lab3::pairAlign<lab3::PointRepresentationCurv, Cloud::PointType>(tmp, result, registered, transform, visualizer);
+        lab3::pairAlign<lab3::PointRepresentationCurv, Cloud::PointType>(tmp, result, registered, transform, visualizer, false);
 
         registeredClouds.push_back(registered);
     }
@@ -127,6 +140,10 @@ Cloud::Ptr method2(const vector<Cloud::Ptr>& data, lab3::Visualizer &visualizer)
     for (const auto &registered : registeredClouds) {
         *result += *registered;
     }
+
+    std::cout << "Final registration result" << std::endl;
+
+    visualizer.showCloudsBottomLeft<Cloud::PointType>({result});
 
     return result;
 }

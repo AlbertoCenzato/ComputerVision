@@ -36,7 +36,8 @@
  */
 
 /* \author Radu Bogdan Rusu
- * adaptation Raphael Favier*/
+ * adaptation Raphael Favier
+ * adaptation Alberto Cenzato */
 
 #include <boost/make_shared.hpp>
 #include <pcl/point_types.h>

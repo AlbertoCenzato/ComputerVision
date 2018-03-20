@@ -209,16 +209,18 @@ Eigen::VectorXf estimateGround(PointCloudT::Ptr cloud)
     // Optional
     seg.setOptimizeCoefficients (true);
     // Mandatory
-    seg.setModelType (pcl::SACMODEL_PLANE);
+    seg.setModelType (pcl::SACMODEL_PERPENDICULAR_PLANE);
+    Eigen::Vector3f axis(0.f, 1.f, 0.f);
+    seg.setAxis(axis);
+    seg.setEpsAngle(  30.0f * (M_PI/180.0f) ); // necessary otherwise setAxis is ignored
     seg.setMethodType (pcl::SAC_RANSAC);
-    seg.setMaxIterations (1000);
+    seg.setMaxIterations (500);
     seg.setDistanceThreshold (0.01);
 
     // Create the filtering object
     pcl::ExtractIndices<PointT> extract;
 
-    int i = 0, nr_points = (int) cloud_filtered->points.size ();
-    // Extract planes while 30% of the original cloud is still there
+    int nr_points = int(cloud_filtered->points.size());
 
     // Segment the largest planar component from the remaining cloud
     seg.setInputCloud(cloud_filtered);
@@ -240,7 +242,6 @@ Eigen::VectorXf estimateGround(PointCloudT::Ptr cloud)
     extract.setNegative(true);        // to make filter method to return "outliers" instead of "inliers"
     extract.filter(*remaining_cloud);
     cloud_filtered.swap(remaining_cloud);
-    i++;
 
     // Visualization:
     pcl::visualization::PCLVisualizer viewer("PCL Viewer");

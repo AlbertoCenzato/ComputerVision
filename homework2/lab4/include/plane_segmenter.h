@@ -41,7 +41,6 @@ public:
     void setInputCloud(PointCloudTConstPtr cloud)
     {
         inputCloud = cloud;
-        seg.setInputCloud(inputCloud);
         coefficients = pcl::ModelCoefficients::Ptr(new pcl::ModelCoefficients);
         planeCloud = PointCloudTPtr(new PointCloudT);
         segmentedCloud = PointCloudTPtr(new PointCloudT);
@@ -56,6 +55,7 @@ public:
 
         // Segment the largest planar component from the remaining cloud
         pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
+        seg.setInputCloud(cloud);
         seg.segment(*inliers, *coefficients);
         if (inliers->indices.size() == 0) {
             std::cerr << "Could not estimate a planar model for the given dataset." << std::endl;
@@ -66,8 +66,6 @@ public:
             error = false;
 
         // Extract the inliers
-        planeCloud->resize(inliers->indices.size());
-
         pcl::ExtractIndices<PointT> extract;
         extract.setInputCloud(cloud);
         extract.setIndices(inliers);

@@ -157,7 +157,7 @@ int main (int argc, char** argv)
     viewer.setCameraPosition(0,0,-2,0,-1,0,0);
 
     PlaneSegmenter<PointT> planeSegmenter;
-    planeSegmenter.setAxisAndTolerance({1.f,0.f,0.f});
+    planeSegmenter.setAxisAndTolerance({0.f,1.f,0.f});
     planeSegmenter.estimatePlane(cloud);
     auto groundCoeffs = planeSegmenter.getPlaneCoefficients();
     auto segmentedCloud = planeSegmenter.getSegmentedCloud();
@@ -285,4 +285,4 @@ Eigen::VectorXf estimatePlane(PointCloudT::Ptr cloud)
 
     return Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>(coefficients->values.data(), coefficients->values.size());
 }
- */
+*/

@@ -9,32 +9,34 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>		// for PCL visualizer
+#include <pcl/segmentation/extract_clusters.h>
 
 #include "plane_segmenter.h"
 #include "simple_viewer.h"
 
-using CloudRGB = pcl::PointCloud<pcl::PointXYZRGB>;
+using PointT = pcl::PointXYZRGB;
+using CloudT = pcl::PointCloud<PointT>;
 
-CloudRGB::Ptr removeGroundPlane(CloudRGB::ConstPtr cloud);
+CloudT::Ptr removeGroundPlane(CloudT::ConstPtr cloud);
 
-CloudRGB::Ptr clusterOrHardThreshold(CloudRGB::Ptr cloud);
+CloudT::Ptr extractForegroundObject(CloudT::Ptr cloud);
 
-CloudRGB::Ptr registerClouds(std::vector<CloudRGB::Ptr> &clouds);
+CloudT::Ptr registerClouds(std::vector<CloudT::Ptr> &clouds);
 
 
 int main (int argc, char** argv) {
 
     lab4::SimpleViewer viewer("Nao");
-	std::vector<CloudRGB> naoClouds;
+	std::vector<CloudT::Ptr> naoClouds;
 
 
 	for (unsigned int i = 1; i <= 6; i++) {
-		CloudRGB::Ptr cloud (new CloudRGB);
+		CloudT::Ptr cloud (new CloudT);
 
 		// Load point cloud from .pcd file:
 		std::stringstream ss;
 		ss << "../dataset_lab4/nao/" << i << ".pcd";
-		if (pcl::io::loadPCDFile<CloudRGB::PointType> (ss.str(), *cloud) == -1) //* load the file
+		if (pcl::io::loadPCDFile<CloudT::PointType> (ss.str(), *cloud) == -1) //* load the file
 		{
 			PCL_ERROR ("Couldn't read the pcd file \n");
 			return (-1);
@@ -46,11 +48,11 @@ int main (int argc, char** argv) {
 
         viewer.visualize(cloudNoGround);
 
-		//auto naoCloud = clusterOrHardThreshold(cloudNoGround);
+		auto naoCloud = extractForegroundObject(cloudNoGround);
 
-		//viewer.visualize(naoCloud);
+		viewer.visualize(naoCloud);
 
-		//naoClouds.push_back(naoCloud);
+		naoClouds.push_back(naoCloud);
 	}
 
 	//auto finalCloud = registerClouds(naoClouds);
@@ -61,11 +63,61 @@ int main (int argc, char** argv) {
 }
 
 
-CloudRGB::Ptr removeGroundPlane(CloudRGB::ConstPtr cloud)
+CloudT::Ptr removeGroundPlane(CloudT::ConstPtr cloud)
 {
-	lab4::PlaneSegmenter<CloudRGB::PointType> seg;
+	lab4::PlaneSegmenter<PointT> seg;
 	seg.setAxisAndTolerance({0.f,1.f,0.f});
     seg.setDistanceThreshold(0.05);
 	seg.estimatePlane(cloud);
 	return seg.getSegmentedCloud();
+}
+
+CloudT::Ptr extractForegroundObject(CloudT::Ptr cloud)
+{
+    // Creating the KdTree object for the search method of the extraction
+    pcl::search::KdTree<PointT>::Ptr tree(new pcl::search::KdTree<PointT>);
+    tree->setInputCloud(cloud);
+
+    std::vector<pcl::PointIndices> cluster_indices;
+    pcl::EuclideanClusterExtraction<PointT> ec;
+    ec.setClusterTolerance(0.02); // 2cm
+    ec.setMinClusterSize(1000);
+    ec.setMaxClusterSize(25000);
+    ec.setSearchMethod(tree);
+    ec.setInputCloud(cloud);
+    ec.extract(cluster_indices);
+
+    auto minDistance = std::numeric_limits<float>::max();
+    int bestCluster = -1;
+
+    std::vector<CloudT::Ptr> clusters(cluster_indices.size());
+    for (auto i = 0; i < cluster_indices.size(); ++i) {
+        const auto &indices = cluster_indices[i].indices;
+        clusters[i] = CloudT::Ptr(new CloudT);
+        auto &cluster = clusters[i];
+        float meanDistance = 0;
+        for (auto index : indices) {
+            const auto &point = cloud->points[index];
+            meanDistance += point.z;
+            cluster->points.push_back(point);
+        }
+        meanDistance /= cluster->points.size();
+        cluster->width = cluster->points.size();
+        cluster->height = 1;
+        cluster->is_dense = true;
+
+        if (meanDistance < minDistance) {
+            minDistance = meanDistance;
+            bestCluster = i;
+        }
+
+        //std::cout << "PointCloud representing the Cluster: " << cluster->points.size () << " data points." << std::endl;
+        //viewer.visualize(cluster);
+    }
+
+    if (bestCluster == -1)
+        return CloudT::Ptr(new CloudT);
+
+    return clusters[bestCluster];
+
 }

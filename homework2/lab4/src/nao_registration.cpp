@@ -13,6 +13,7 @@
 
 #include "plane_segmenter.h"
 #include "simple_viewer.h"
+#include "multi_cloud_register.h"
 
 using PointT = pcl::PointXYZRGB;
 using CloudT = pcl::PointCloud<PointT>;
@@ -21,13 +22,13 @@ CloudT::Ptr removeGroundPlane(CloudT::ConstPtr cloud);
 
 CloudT::Ptr extractForegroundObject(CloudT::Ptr cloud);
 
-CloudT::Ptr registerClouds(std::vector<CloudT::Ptr> &clouds);
+CloudT::Ptr registerClouds(std::vector<CloudT::ConstPtr> &clouds);
 
 
 int main (int argc, char** argv) {
 
     lab4::SimpleViewer viewer("Nao");
-	std::vector<CloudT::Ptr> naoClouds;
+	std::vector<CloudT::ConstPtr> naoClouds;
 
 
 	for (unsigned int i = 1; i <= 6; i++) {
@@ -55,9 +56,9 @@ int main (int argc, char** argv) {
 		naoClouds.push_back(naoCloud);
 	}
 
-	//auto finalCloud = registerClouds(naoClouds);
+	auto finalCloud = registerClouds(naoClouds);
 
-	// viewer.visualize(finalCloud);
+	viewer.visualize(finalCloud);
 
 	return 0;
 }
@@ -110,14 +111,17 @@ CloudT::Ptr extractForegroundObject(CloudT::Ptr cloud)
             minDistance = meanDistance;
             bestCluster = i;
         }
-
-        //std::cout << "PointCloud representing the Cluster: " << cluster->points.size () << " data points." << std::endl;
-        //viewer.visualize(cluster);
     }
 
     if (bestCluster == -1)
         return CloudT::Ptr(new CloudT);
 
     return clusters[bestCluster];
+}
 
+
+CloudT::Ptr registerClouds(std::vector<CloudT::ConstPtr> &clouds)
+{
+    lab4::MultiCloudRegister<PointT> reg;
+    return reg.registerClouds(clouds);
 }

@@ -56,6 +56,8 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/sample_consensus/method_types.h>
 
+#include "plane_segmenter.h"
+
 typedef pcl::PointXYZRGBA PointT;
 typedef pcl::PointCloud<PointT> PointCloudT;
 
@@ -78,11 +80,13 @@ int print_help()
     return 0;
 }
 
+/*
 struct callback_args{
     // structure used to pass arguments to the callback function
     PointCloudT::Ptr clicked_points_3d;
     pcl::visualization::PCLVisualizer::Ptr viewerPtr;
 };
+
 
 void
 pp_callback (const pcl::visualization::PointPickingEvent& event, void* args)
@@ -100,8 +104,8 @@ pp_callback (const pcl::visualization::PointPickingEvent& event, void* args)
     data->viewerPtr->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "clicked_points");
     std::cout << current_point.x << " " << current_point.y << " " << current_point.z << std::endl;
 }
+ */
 
-Eigen::VectorXf estimateGround(PointCloudT::Ptr cloud);
 
 int main (int argc, char** argv)
 {
@@ -152,9 +156,27 @@ int main (int argc, char** argv)
     viewer.addPointCloud<PointT> (cloud, rgb, "input_cloud");
     viewer.setCameraPosition(0,0,-2,0,-1,0,0);
 
+    PlaneSegmenter<PointT> planeSegmenter;
+    planeSegmenter.setAxisAndTolerance({1.f,0.f,0.f});
+    planeSegmenter.estimatePlane(cloud);
+    auto groundCoeffs = planeSegmenter.getPlaneCoefficients();
+    auto segmentedCloud = planeSegmenter.getSegmentedCloud();
+    auto planeCloud = planeSegmenter.getPlaneCloud();
 
-    auto groundCoeffs = estimateGround(cloud);
+    // Draw output point cloud:
+    viewer.setBackgroundColor(0, 0, 0);
+    viewer.addCoordinateSystem(0.1);
+    viewer.addText("Cloud 1", 10, 10);
+    viewer.addPointCloud<PointT>(segmentedCloud, "cloud");
 
+    pcl::visualization::PointCloudColorHandlerCustom<PointT> red(planeCloud, 255, 0, 0);
+    viewer.addPointCloud<PointT>(planeCloud, red, "plane");
+
+    // Loop for visualization (so that the visualizers are continuously updated):
+    std::cout << "Visualization...press Q to continue. " << std::endl;
+    while (!viewer.wasStopped()) {
+        viewer.spin();
+    }
 
     // Initialize new viewer:
     pcl::visualization::PCLVisualizer viewer("PCL Viewer");          // viewer initialization
@@ -187,8 +209,8 @@ int main (int argc, char** argv)
 }
 
 
-
-Eigen::VectorXf estimateGround(PointCloudT::Ptr cloud)
+/*
+Eigen::VectorXf estimatePlane(PointCloudT::Ptr cloud)
 {
     PointCloudT::Ptr cloud_filtered(new PointCloudT);
     PointCloudT::Ptr plane_cloud(new PointCloudT);
@@ -263,3 +285,4 @@ Eigen::VectorXf estimateGround(PointCloudT::Ptr cloud)
 
     return Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>(coefficients->values.data(), coefficients->values.size());
 }
+ */

@@ -80,32 +80,6 @@ int print_help()
     return 0;
 }
 
-/*
-struct callback_args{
-    // structure used to pass arguments to the callback function
-    PointCloudT::Ptr clicked_points_3d;
-    pcl::visualization::PCLVisualizer::Ptr viewerPtr;
-};
-
-
-void
-pp_callback (const pcl::visualization::PointPickingEvent& event, void* args)
-{
-    struct callback_args* data = (struct callback_args *)args;
-    if (event.getPointIndex () == -1)
-        return;
-    PointT current_point;
-    event.getPoint(current_point.x, current_point.y, current_point.z);
-    data->clicked_points_3d->points.push_back(current_point);
-    // Draw clicked points in red:
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> red (data->clicked_points_3d, 255, 0, 0);
-    data->viewerPtr->removePointCloud("clicked_points");
-    data->viewerPtr->addPointCloud(data->clicked_points_3d, red, "clicked_points");
-    data->viewerPtr->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 10, "clicked_points");
-    std::cout << current_point.x << " " << current_point.y << " " << current_point.z << std::endl;
-}
- */
-
 
 int main (int argc, char** argv)
 {
@@ -156,12 +130,12 @@ int main (int argc, char** argv)
     viewer.addPointCloud<PointT> (cloud, rgb, "input_cloud");
     viewer.setCameraPosition(0,0,-2,0,-1,0,0);
 
-    PlaneSegmenter<PointT> planeSegmenter;
-    planeSegmenter.setAxisAndTolerance({0.f,1.f,0.f});
-    planeSegmenter.estimatePlane(cloud);
-    auto groundCoeffs = planeSegmenter.getPlaneCoefficients();
-    auto segmentedCloud = planeSegmenter.getSegmentedCloud();
-    auto planeCloud = planeSegmenter.getPlaneCloud();
+    lab4::PlaneSegmenter<PointT> seg;
+    seg.setAxisAndTolerance({0.f,1.f,0.f});
+    seg.estimatePlane(cloud);
+    auto groundCoeffs = seg.getPlaneCoefficients();
+    auto segmentedCloud = seg.getSegmentedCloud();
+    auto planeCloud = seg.getPlaneCloud();
 
     // Draw output point cloud:
     viewer.setBackgroundColor(0, 0, 0);
@@ -207,82 +181,3 @@ int main (int argc, char** argv)
 
     return 0;
 }
-
-
-/*
-Eigen::VectorXf estimatePlane(PointCloudT::Ptr cloud)
-{
-    PointCloudT::Ptr cloud_filtered(new PointCloudT);
-    PointCloudT::Ptr plane_cloud(new PointCloudT);
-    PointCloudT::Ptr remaining_cloud(new PointCloudT);
-
-    // Create the filtering object: downsample the dataset using a leaf size of 1cm
-    pcl::VoxelGrid<PointT> sor;
-    sor.setInputCloud (cloud);
-    sor.setLeafSize (0.01f, 0.01f, 0.01f);
-    sor.filter (*cloud_filtered);
-
-    std::cerr << "PointCloud after filtering: " << cloud_filtered->width * cloud_filtered->height << " data points." << std::endl;
-
-    pcl::ModelCoefficients::Ptr coefficients(new pcl::ModelCoefficients());
-    pcl::PointIndices::Ptr inliers(new pcl::PointIndices());
-    // Create the segmentation object
-    pcl::SACSegmentation<PointT> seg;
-    // Optional
-    seg.setOptimizeCoefficients (true);
-    // Mandatory
-    seg.setModelType (pcl::SACMODEL_PERPENDICULAR_PLANE);
-    Eigen::Vector3f axis(0.f, 1.f, 0.f);
-    seg.setAxis(axis);
-    seg.setEpsAngle(  30.0f * (M_PI/180.0f) ); // necessary otherwise setAxis is ignored
-    seg.setMethodType (pcl::SAC_RANSAC);
-    seg.setMaxIterations (500);
-    seg.setDistanceThreshold (0.01);
-
-    // Create the filtering object
-    pcl::ExtractIndices<PointT> extract;
-
-    int nr_points = int(cloud_filtered->points.size());
-
-    // Segment the largest planar component from the remaining cloud
-    seg.setInputCloud(cloud_filtered);
-    seg.segment(*inliers, *coefficients);
-    if (inliers->indices.size() == 0) {
-        std::cerr << "Could not estimate a planar model for the given dataset." << std::endl;
-        return Eigen::VectorXf();   // TODO: use this as error value
-    }
-
-    // Extract the inliers
-    extract.setInputCloud(cloud_filtered);
-    extract.setIndices(inliers);
-    extract.setNegative(false);
-    extract.filter(*plane_cloud);
-    std::cerr << "PointCloud representing the planar component: " << plane_cloud->width * plane_cloud->height
-              << " data points." << std::endl;
-
-    // Create the filtering object
-    extract.setNegative(true);        // to make filter method to return "outliers" instead of "inliers"
-    extract.filter(*remaining_cloud);
-    cloud_filtered.swap(remaining_cloud);
-
-    // Visualization:
-    pcl::visualization::PCLVisualizer viewer("PCL Viewer");
-
-    // Draw output point cloud:
-    viewer.setBackgroundColor(0, 0, 0);
-    viewer.addCoordinateSystem(0.1);
-    viewer.addText("Cloud 1", 10, 10);
-    viewer.addPointCloud<PointT>(remaining_cloud, "cloud");
-
-    pcl::visualization::PointCloudColorHandlerCustom<PointT> red(plane_cloud, 255, 0, 0);
-    viewer.addPointCloud<PointT>(plane_cloud, red, "plane");
-
-    // Loop for visualization (so that the visualizers are continuously updated):
-    std::cout << "Visualization...press Q to continue. " << std::endl;
-    while (!viewer.wasStopped()) {
-        viewer.spin();
-    }
-
-    return Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>(coefficients->values.data(), coefficients->values.size());
-}
-*/

@@ -10,10 +10,12 @@
 #include <pcl/point_types.h>
 #include <pcl/visualization/pcl_visualizer.h>		// for PCL visualizer
 
-using CloudRGB = pcl::PointCloud<pcl::PointXYZRGB>
+#include "plane_segmenter.h"
+#include "simple_viewer.h"
 
+using CloudRGB = pcl::PointCloud<pcl::PointXYZRGB>;
 
-CloudRGB::Ptr removeGroundPlane(CloudRGB::Ptr cloud);
+CloudRGB::Ptr removeGroundPlane(CloudRGB::ConstPtr cloud);
 
 CloudRGB::Ptr clusterOrHardThreshold(CloudRGB::Ptr cloud);
 
@@ -21,8 +23,10 @@ CloudRGB::Ptr registerClouds(std::vector<CloudRGB::Ptr> &clouds);
 
 
 int main (int argc, char** argv) {
-	// Variables declaration:
+
+    lab4::SimpleViewer viewer("Nao");
 	std::vector<CloudRGB> naoClouds;
+
 
 	for (unsigned int i = 1; i <= 6; i++) {
 		CloudRGB::Ptr cloud (new CloudRGB);
@@ -36,35 +40,32 @@ int main (int argc, char** argv) {
 			return (-1);
 		}
 
-		// Visualization:
-		pcl::visualization::PCLVisualizer viewer("PCL Viewer");
-
-		// Draw output point cloud:
-		viewer.setBackgroundColor (0, 0, 0);
-		viewer.addCoordinateSystem (0.1);
-		viewer.addText ("Cloud 1", 10, 10);
-		pcl::visualization::PointCloudColorHandlerRGBField<CloudRGB::PointType> rgb(cloud);
-		viewer.addPointCloud<CloudRGB::PointType>(cloud, rgb, "cloud");
-
-		// Loop for visualization (so that the visualizers are continuously updated):
-		std::cout << "Visualization... "<< std::endl;
-
-		viewer.spin ();
+		viewer.visualize(cloud);
 
 		auto cloudNoGround = removeGroundPlane(cloud);
 
-		// visualize
+        viewer.visualize(cloudNoGround);
 
-		auto naoCloud = clusterOrHardThreshold(cloudNoGround);
+		//auto naoCloud = clusterOrHardThreshold(cloudNoGround);
 
-		// visualize
+		//viewer.visualize(naoCloud);
 
-		naoClouds.push_back(naoCloud);
+		//naoClouds.push_back(naoCloud);
 	}
 
-	auto finalCloud = registerClouds(naoClouds);
+	//auto finalCloud = registerClouds(naoClouds);
 
-	// visualize
+	// viewer.visualize(finalCloud);
 
 	return 0;
+}
+
+
+CloudRGB::Ptr removeGroundPlane(CloudRGB::ConstPtr cloud)
+{
+	lab4::PlaneSegmenter<CloudRGB::PointType> seg;
+	seg.setAxisAndTolerance({0.f,1.f,0.f});
+    seg.setDistanceThreshold(0.05);
+	seg.estimatePlane(cloud);
+	return seg.getSegmentedCloud();
 }

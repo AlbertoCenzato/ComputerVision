@@ -6,7 +6,7 @@ set(EXECUTABLE_2 ${PROJECT_NAME}_nao_registration)
 
 include_directories(include)
 
-add_executable(${EXECUTABLE_1} src/people_detection.cpp)
+add_executable(${EXECUTABLE_1} src/people_detection.cpp include/fpfh.h)
 target_link_libraries(${EXECUTABLE_1} ${PCL_LIBRARIES})
 
 add_executable(${EXECUTABLE_2} src/nao_registration.cpp src/utils/simple_viewer.cpp)

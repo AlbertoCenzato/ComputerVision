@@ -12,6 +12,13 @@
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
 #include <pcl/registration/icp_nl.h>
 #include <pcl/features/normal_3d.h>
+#include <pcl/features/normal_3d_omp.h>
+#include <thread>
+#include <pcl/keypoints/sift_keypoint.h>
+#include <pcl/features/fpfh_omp.h>
+#include <pcl/registration/correspondence_rejection_features.h>
+
+#include "fpfh.h"
 
 namespace lab4 {
 
@@ -53,19 +60,37 @@ namespace lab4 {
                 PointCloudTPtr tmp(new PointCloudT);
                 pcl::transformPointCloud(*cloud, *tmp, transform); //transform current pair into the global transform
 
-                //visualizer.showCloudsBottomLeft<Cloud::PointType>({result, tmp});
+                pcl::visualization::PCLVisualizer viewer("After tranformation");
+                pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgbSrc(tmp);
+                viewer.addPointCloud<PointT>(tmp, rgbSrc, "source_cloud");
+
+                pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgbTgt(registeredCloud);
+                viewer.addPointCloud<PointT>(registeredCloud, rgbTgt, "target_cloud");
+                viewer.spin();
+
 
                 std::cout << "ICP registration, cloud 0 vs cloud " << i << std::endl;
 
                 PointCloudTPtr registered(new PointCloudT);
                 pairAlign(tmp, registeredCloud, registered, transform/*,visualizer, false*/);
 
-                registeredClouds.push_back(registered);
+                viewer.removeAllPointClouds();
+                pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgbSrc1(registered);
+                viewer.addPointCloud<PointT>(registered, rgbSrc1, "source_cloud");
+
+                pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgbTgt1(registeredCloud);
+                viewer.addPointCloud<PointT>(registeredCloud, rgbTgt1, "target_cloud");
+                viewer.spin();
+
+                //registeredClouds.push_back(registered);
+                *registeredCloud += *registered;
             }
 
+            /*
             for (const auto &registered : registeredClouds) {
                 *registeredCloud += *registered;
             }
+            */
 
             cloudsToRegister.clear();
 
@@ -94,23 +119,39 @@ namespace lab4 {
         std::vector<PointCloudTConstPtr> cloudsToRegister;
 
         void correspondenceEstimation(PointCloudTConstPtr source, PointCloudTConstPtr target,
-                                      Eigen::Matrix4f &transformation) const {
-            pcl::registration::CorrespondenceEstimation<PointT, PointT> est;
+                                      Eigen::Matrix4f &transformation) const
+        {
+            auto sourceKeypoints = extractFPFHDescriptors<PointT>(source);
+            auto targetKeypoints = extractFPFHDescriptors<PointT>(target);
+
+            pcl::registration::CorrespondenceEstimation<pcl::FPFHSignature33, pcl::FPFHSignature33> est;
             pcl::CorrespondencesPtr corr(new pcl::Correspondences);
 
-            est.setInputSource(source);
-            est.setInputTarget(target);
+            est.setInputSource(sourceKeypoints);
+            est.setInputTarget(sourceKeypoints);
             est.determineReciprocalCorrespondences(*corr);
 
             pcl::registration::CorrespondenceRejectorSampleConsensus<PointT> rejector;
+
             rejector.setInputSource(source);
             rejector.setInputTarget(target);
-            rejector.setInlierThreshold(0.5);
-            rejector.setMaximumIterations(30);
+            rejector.setInlierThreshold(0.05);
+            rejector.setMaximumIterations(500);
             rejector.setInputCorrespondences(corr);
 
             pcl::Correspondences inliers;
             rejector.getCorrespondences(inliers);
+
+            pcl::visualization::PCLVisualizer viewer("Correspondeces");
+            pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgbSrc(source);
+            viewer.addPointCloud<PointT>(source, rgbSrc, "source_cloud");
+
+            pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgbTgt(target);
+            viewer.addPointCloud<PointT>(target, rgbTgt, "target_cloud");
+
+            viewer.addCorrespondences<PointT>(source, target, inliers);
+
+            viewer.spin();
 
             transformation = rejector.getBestTransformation();
         }
@@ -138,17 +179,17 @@ namespace lab4 {
 
         /**
          * \brief Align a pair of PointCloud datasets and return the result
-         * \param cloud_src the source PointCloud
-         * \param cloud_tgt the target PointCloud
+         * \param cloudSrc the source PointCloud
+         * \param cloudTgt the target PointCloud
          * \param output the resultant aligned source PointCloud
-         * \param final_transform the resultant transform between source and target
+         * \param finalTransform the resultant transform between source and target
          */
-        void pairAlign(PointCloudTConstPtr cloud_src, PointCloudTConstPtr cloud_tgt, PointCloudTPtr output,
-                       Eigen::Matrix4f &final_transform) const
+        void pairAlign(PointCloudTConstPtr cloudSrc, PointCloudTConstPtr cloudTgt, PointCloudTPtr output,
+                       Eigen::Matrix4f &finalTransform) const
         {
             pcl::PointCloud<pcl::PointNormal>::Ptr points_with_normals_src(new pcl::PointCloud<pcl::PointNormal>);
             pcl::PointCloud<pcl::PointNormal>::Ptr points_with_normals_tgt(new pcl::PointCloud<pcl::PointNormal>);
-            computeNormalsAndCurv(cloud_src, cloud_tgt, points_with_normals_src, points_with_normals_tgt);
+            computeNormalsAndCurv(cloudSrc, cloudTgt, points_with_normals_src, points_with_normals_tgt);
 
             // Instantiate our custom point representation (defined above) ...
             PointRepresentationCurv point_representation;
@@ -207,18 +248,18 @@ namespace lab4 {
 
             //targetToSource = Ti.inverse(); // Get the transformation from target to source
 
-            pcl::transformPointCloud(*cloud_src, *output, Ti/*targetToSource*/); // Transform target back in source frame
+            pcl::transformPointCloud(*cloudSrc, *output, Ti/*targetToSource*/); // Transform target back in source frame
 
             /*
             if (visualizeTop)
-                vis.showIterTop<PointT>(output, cloud_tgt);
+                vis.showIterTop<PointT>(output, cloudTgt);
             else
-                vis.showIterBottom<PointT>(output, cloud_tgt);
+                vis.showIterBottom<PointT>(output, cloudTgt);
             */
 
-            //*output += *cloud_src;  //add the source to the transformed target
+            //*output += *cloudSrc;  //add the source to the transformed target
 
-            final_transform = Ti;//targetToSource;
+            finalTransform = Ti;//targetToSource;
         }
 
 
@@ -241,7 +282,13 @@ namespace lab4 {
             pcl::copyPointCloud(*cloud_tgt, *points_with_normals_tgt);
         }
 
+
+
+
+
     };
+
+
 
 } // namespace lab4
 #endif //CV_HW2_LAB4_MULTI_CLOUD_REGISTER_H

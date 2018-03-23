@@ -18,7 +18,7 @@
 #include <pcl/features/fpfh_omp.h>
 #include <pcl/registration/correspondence_rejection_features.h>
 
-#include "fpfh.h"
+#include "registration.h"
 
 namespace lab4 {
 
@@ -49,11 +49,6 @@ namespace lab4 {
             for (size_t i = 1; i < cloudsToRegister.size(); ++i) {
                 const auto &cloud = cloudsToRegister[i];
 
-                //std::cout << "Correspondence estimation, cloud 0 vs cloud " << i << std::endl;
-
-                //visualizer.showCloudsBottomLeft<Cloud::PointType>({result, cloud});
-
-                //register cloud with result
                 Eigen::Matrix4f transform;
                 correspondenceEstimation(cloud, registeredCloud, transform);
 
@@ -67,6 +62,8 @@ namespace lab4 {
                 pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgbTgt(registeredCloud);
                 viewer.addPointCloud<PointT>(registeredCloud, rgbTgt, "target_cloud");
                 viewer.spin();
+
+                //-------------------------------
 
 
                 std::cout << "ICP registration, cloud 0 vs cloud " << i << std::endl;
@@ -82,15 +79,14 @@ namespace lab4 {
                 viewer.addPointCloud<PointT>(registeredCloud, rgbTgt1, "target_cloud");
                 viewer.spin();
 
-                //registeredClouds.push_back(registered);
-                *registeredCloud += *registered;
+                registeredClouds.push_back(registered);
+                //*registeredCloud += *registered;
             }
 
-            /*
+
             for (const auto &registered : registeredClouds) {
                 *registeredCloud += *registered;
             }
-            */
 
             cloudsToRegister.clear();
 
@@ -121,10 +117,10 @@ namespace lab4 {
         void correspondenceEstimation(PointCloudTConstPtr source, PointCloudTConstPtr target,
                                       Eigen::Matrix4f &transformation) const
         {
-            auto sourceKeypoints = extractFPFHDescriptors<PointT>(source);
-            auto targetKeypoints = extractFPFHDescriptors<PointT>(target);
+            auto sourceKeypoints = extractPFHRGBDescriptors<PointT>(source);
+            auto targetKeypoints = extractPFHRGBDescriptors<PointT>(target);
 
-            pcl::registration::CorrespondenceEstimation<pcl::FPFHSignature33, pcl::FPFHSignature33> est;
+            pcl::registration::CorrespondenceEstimation<pcl::PFHRGBSignature250, pcl::PFHRGBSignature250> est;
             pcl::CorrespondencesPtr corr(new pcl::Correspondences);
 
             est.setInputSource(sourceKeypoints);
@@ -135,7 +131,7 @@ namespace lab4 {
 
             rejector.setInputSource(source);
             rejector.setInputTarget(target);
-            rejector.setInlierThreshold(0.05);
+            rejector.setInlierThreshold(0.07); //0.03);
             rejector.setMaximumIterations(500);
             rejector.setInputCorrespondences(corr);
 
@@ -236,30 +232,11 @@ namespace lab4 {
                     reg.setMaxCorrespondenceDistance(reg.getMaxCorrespondenceDistance() - 0.001);
 
                 prev = reg.getLastIncrementalTransformation();
-
-                /*
-                // visualize current state
-                if (visualizeTop)
-                    vis.showCloudsTopRight<pcl::PointNormal>({points_with_normals_tgt, points_with_normals_src});
-                else
-                    vis.showCloudsBottomRight<pcl::PointNormal>({points_with_normals_tgt, points_with_normals_src});
-                 */
             }
 
-            //targetToSource = Ti.inverse(); // Get the transformation from target to source
+            pcl::transformPointCloud(*cloudSrc, *output, Ti); // Transform target back in source frame
 
-            pcl::transformPointCloud(*cloudSrc, *output, Ti/*targetToSource*/); // Transform target back in source frame
-
-            /*
-            if (visualizeTop)
-                vis.showIterTop<PointT>(output, cloudTgt);
-            else
-                vis.showIterBottom<PointT>(output, cloudTgt);
-            */
-
-            //*output += *cloudSrc;  //add the source to the transformed target
-
-            finalTransform = Ti;//targetToSource;
+            finalTransform = Ti;
         }
 
 

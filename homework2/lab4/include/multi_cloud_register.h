@@ -65,7 +65,6 @@ namespace lab4 {
 
                 //-------------------------------
 
-
                 std::cout << "ICP registration, cloud 0 vs cloud " << i << std::endl;
 
                 PointCloudTPtr registered(new PointCloudT);

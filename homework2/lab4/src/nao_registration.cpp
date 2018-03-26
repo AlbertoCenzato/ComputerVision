@@ -22,8 +22,6 @@ CloudT::Ptr removeGroundPlane(CloudT::ConstPtr cloud);
 
 CloudT::Ptr extractForegroundObject(CloudT::Ptr cloud);
 
-CloudT::Ptr registerClouds(std::vector<CloudT::ConstPtr> &clouds);
-
 
 int main (int argc, char** argv) {
 
@@ -56,7 +54,8 @@ int main (int argc, char** argv) {
 		naoClouds.push_back(naoCloud);
 	}
 
-	auto finalCloud = registerClouds(naoClouds);
+    lab4::MultiCloudRegister<PointT> reg;
+    auto finalCloud = reg.registerClouds(naoClouds);
 
 	viewer.visualize(finalCloud);
 
@@ -97,7 +96,7 @@ CloudT::Ptr extractForegroundObject(CloudT::Ptr cloud)
         clusters[i] = CloudT::Ptr(new CloudT);
         auto &cluster = clusters[i];
         float meanDistance = 0;
-        for (auto index : indices) {
+        for (auto index : indices) {    // here a sampling should be enough to estimate the nearest cluster...
             const auto &point = cloud->points[index];
             meanDistance += point.z;
             cluster->points.push_back(point);
@@ -117,11 +116,4 @@ CloudT::Ptr extractForegroundObject(CloudT::Ptr cloud)
         return CloudT::Ptr(new CloudT);
 
     return clusters[bestCluster];
-}
-
-
-CloudT::Ptr registerClouds(std::vector<CloudT::ConstPtr> &clouds)
-{
-    lab4::MultiCloudRegister<PointT> reg;
-    return reg.registerClouds(clouds);
 }

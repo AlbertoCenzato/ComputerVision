@@ -75,3 +75,11 @@ Thumbs.db
 cmake-build-debug/
 
 \.idea/
+
+homework2/report/report\.aux
+
+homework2/report/report\.log
+
+homework2/report/report\.pdf
+
+homework2/report/report\.synctex\.gz

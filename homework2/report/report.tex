@@ -20,52 +20,48 @@ Scopo di questo secondo homework era di familiarizzare con la libreria PCL. Sono
 \end{abstract}
 
 \section{Lab 1} \label{sec:lab1}
+La prima esperienza era suddivisa in due esercizi. Nel primo lo scopo era di rimuovere dalla point cloud tutti i punti con $X > 0$ e colorare i rimanenti in blu. Nel secondo era necessario filtrare la point cloud facendo di fatto un downsample dell'immagine 3D con risoluzioni diverse per ogni quadrante del piano $X$-$Y$.
 
-Explain the context of the experiment here. Why is condensed matter physics interesting or important?
-Optional things you could talk about (but don't have to -- this is up to you): transistors, computers, Quantum computers, fundamental knowledge (e.g. the resistance quantum).
+	\subsection{Algortimi utilizzati}
+	Per quanto riguarda il primo esercizio non c'è molto da dire sugli algoritmi utilizzati. Infatti, per modificare il colore dei punti, è sufficiente iterare su tutti i punti, verificare se $X > 0$ e in caso affermativo copiare il punto in una nuova point cloud modificando il suo colore in blu. La nuova cloud sarà quindi definita $C' = \left\{p \in C | p.x > 0, p.b = 255 \right\}$.
+	Per filtrare la point cloud invece è stata usata la classe di PCL \verb|VoxelGrid| che divide lo spazio 3D in voxel: tutti i punti all'interno di un voxel vengono approssimati col loro centroide. Modificando la dimensione degli spigoli dei voxel si ottiene un donwsample maggiore o minore.
+	
+	\subsection{Considerazioni}
+	L'implementazione è stata piuttosto diretta a partire dai file di esempio forniti, sono state necessarie solo alcune modifiche. L'output del secondo esercizio è mostrato in figura \ref{fig:lab1} 
+	
+	\begin{figure}
+		\centering
+		\includegraphics[width=1\textwidth]{images/lab1.png}
+		\caption{\label{fig:lab1}Esempio di point cloud filtrata e colorata: a sinistra l'originale, a destra l'output.}
+	\end{figure}
 
-Briefly explain what methods you will use in the experiment, and what values you will extract from the data.
-
-For this section and all following sections: If you refer to an equation, previous result or theory that is not regarded as common knowledge, then cite the source (article or book) where you found this. For example, you can cite the Nano 3 Lecture notes \cite{nano3}.
 
 \section{Lab 2} \label{sec:lab2}
 
-\subsection{Two-dimensional Electron Gas}
-Here, explain the concept of a 2-DEG in GaAs/AlGaAs. What is a 2-DEG and why does it arise?
+Descrizione bla bla
 
-\subsection{Hall Effect}
-Explain the classical Hall effect in your own words. What do I measure at $B=0$? And what happens if $B>0$? Which effect gives rise to the voltage drop in the vertical direction?
+	\subsection{Algortimi utilizzati (teoria)}
 
-\subsection{Quantum Hall Effect}
-Explain the IQHE in your own words. What does the density of states look like in a 2-DEG when $B=0$? What are Landau levels and how do they arise? What are edge states? What does the electron transport look like when you change the magnetic field? What do you expect to measure?
+
+	\subsection{Considerazioni}
+
 
 \section{Lab 3} \label{sec:lab3}
-\subsection{Fabrication}
-Explain a step-by-step recipe for fabrication here. How long did you etch and why? What is an Ohmic contact?
-\subsection{Experimental set-up}
-Explain the experimental set-up here. Use a schematic picture (make it yourself in photoshop, paint, ...) to show how the components are connected. Briefly explain how a lock-in amplifier works.
+Descrizione bla bla
+
+	\subsection{Algortimi utilizzati (teoria)}
+
+	\subsection{Considerazioni}
+
 
 \section{Lab 4} \label{sec:lab4}
-Show a graph of the longitudinal resistivity ($\rho_{xx}$) and Hall resistivity ($\rho_{xy}$) versus magnetic field, extracted from the raw data shown in figure \ref{fig:data}. You will have the link to the data in your absalon messages, if not e-mail Guen (guen@nbi.dk). Explain how you calculated these values, and refer to the theory.
+Descrizione bla bla
 
-\begin{figure}
-\centering
-\includegraphics[width=1\textwidth]{images/raw_data.jpg}
-\caption{\label{fig:data}Raw (unprocessed) data. Replace this figure with the one you've made, that shows the resistivity.}
-\end{figure}
+	\subsection{Algortimi utilizzati (teoria)}
 
-\subsection{Classical regime}
-Calculate the sheet electron density $n_{s}$ and electron mobility $\mu$ from the data in the low-field regime, and refer to the theory in section \ref{sec:theory}. Explain how you retrieved the values from the data (did you use a linear fit?).
-Round values off to 1 or 2 significant digits: 8.1643 ~= 8.2. Also, 5e-6 is easier to read than 0.000005.
 
-!OBS: This part is optional (only if you have time left).
-Calculate the uncertainty as follows: \newline $u(f(x, y, z)) = \sqrt{(\frac{\delta f}{\delta{x}} u(x))^{2} + (\frac{\delta f}{\delta{y}} u(y))^{2} + (\frac{\delta f}{\delta{z}} u(z))^{2}}$, where $f$ is the calculated value ($n_{s}$ or $\mu$), $x, y, z$ are the variables taken from the measurement and $u(x)$ is the uncertainty in x (and so on).
+	\subsection{Considerazioni}
 
-\subsection{Quantum regime}
-Calculate $n_{s}$ for the high-field regime.
-Show a graph of the longitudinal conductivity ($\rho_{xx}$) and Hall conductivity($\rho_{xy}$) \textbf{in units of the resistance quantum} ($\frac{h}{e^{2}}$), depicting the integer filling factors for each plateau.
-Show a graph of the plateau number versus its corresponding value of $1/B$. From this you can determine the slope, which you use to calculate the electron density.
-Again, calculate the uncertainty for your obtained values.
 
 \begin{thebibliography}{9}
 \bibitem{nano3}

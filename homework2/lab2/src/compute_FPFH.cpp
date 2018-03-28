@@ -55,13 +55,23 @@ pcl::PointCloud<pcl::PointNormal>::Ptr computeNormals(pcl::PointCloud<pcl::Point
     auto numOfThreads = std::thread::hardware_concurrency();
     ne.setNumberOfThreads(numOfThreads); 	// set number of threads when using OpenMP
     ne.compute (*cloud_normals);
+
+    // Copy the xyz info from cloud_xyz and add it to cloud_normals as the xyz field in PointNormals estimation is zero
+    for(size_t i = 0; i < cloud_normals->points.size(); ++i) {
+        cloud_normals->points[i].x = cloud->points[i].x;
+        cloud_normals->points[i].y = cloud->points[i].y;
+        cloud_normals->points[i].z = cloud->points[i].z;
+    }
+
     std::cout << "done." << std::endl;
 
     return cloud_normals;
 }
 
 
-pcl::PointCloud<pcl::PointWithScale>::Ptr computeSIFT(pcl::PointCloud<pcl::PointNormal>::Ptr cloud_normals) {
+pcl::PointCloud<pcl::PointWithScale>::Ptr computeSIFT(pcl::PointCloud<pcl::PointNormal>::Ptr cloud_normals,
+                                                      pcl::IndicesPtr &indices)
+{
     const float min_scale = 0.01f;
     const int n_octaves = 3;
     const int n_scales_per_octave = 4;
@@ -69,22 +79,40 @@ pcl::PointCloud<pcl::PointWithScale>::Ptr computeSIFT(pcl::PointCloud<pcl::Point
 
     pcl::SIFTKeypoint<pcl::PointNormal, pcl::PointWithScale> sift;
     pcl::PointCloud<pcl::PointWithScale>::Ptr result(new pcl::PointCloud<pcl::PointWithScale>);
-    pcl::search::KdTree<pcl::PointNormal>::Ptr tree(new pcl::search::KdTree<pcl::PointNormal>());
-    sift.setSearchMethod(tree);
+    pcl::search::KdTree<pcl::PointNormal>::Ptr tree_sift(new pcl::search::KdTree<pcl::PointNormal>());
+    sift.setSearchMethod(tree_sift);
     sift.setScales(min_scale, n_octaves, n_scales_per_octave);
     sift.setMinimumContrast(min_contrast);
     sift.setInputCloud(cloud_normals);
     sift.compute(*result);
 
+    indices->clear();
+    pcl::KdTreeFLANN<pcl::PointNormal>::Ptr tree(new pcl::KdTreeFLANN<pcl::PointNormal>());
+    tree->setInputCloud(cloud_normals);
+    for (const auto &point : result->points) {
+        std::vector<int> index;
+        std::vector<float> dist;
+        pcl::PointNormal p;
+        p.x = point.x;
+        p.y = point.y;
+        p.z = point.z;
+        tree->nearestKSearch(p, 1, index, dist);
+        indices->push_back(index[0]);
+    }
+
     return result;
 }
 
 
-pcl::PointCloud<pcl::FPFHSignature33>::Ptr computeFPFH(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::PointNormal>::Ptr cloud_normals) {
+pcl::PointCloud<pcl::FPFHSignature33>::Ptr computeFPFH(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud,
+                                                       pcl::PointCloud<pcl::PointNormal>::Ptr cloud_normals,
+                                                       pcl::IndicesPtr &indices)
+{
     // Create the FPFH estimation class, and pass the input dataset+normals to it
     pcl::FPFHEstimationOMP<pcl::PointXYZRGB, pcl::PointNormal, pcl::FPFHSignature33> fpfh;
     fpfh.setInputCloud(cloud);
     fpfh.setInputNormals(cloud_normals);
+    fpfh.setIndices(indices);
     // alternatively, if cloud is of tpe PointNormal, do fpfh.setInputNormals (cloud);
 
     // Output datasets
@@ -124,37 +152,47 @@ int main (int argc, char** argv) {
 
     auto cloud_normals = computeNormals(cloud);
 
-    auto keyPoints = computeSIFT(cloud_normals);
+    auto keypointIndices = boost::make_shared<std::vector<int>>();
+    auto keyPoints = computeSIFT(cloud_normals, keypointIndices);
 
-    auto fpfhs = computeFPFH(cloud, cloud_normals);
+    auto fpfhs = computeFPFH(cloud, cloud_normals, keypointIndices);
 
-	// cloud_normals->points.size () should have the same size as the input cloud->points.size ()*
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZRGB>);
+    for (auto index : *keypointIndices)
+        cloud_out ->push_back(cloud->points[index]);
 
-	// Visualize FPFH:
-	int normalsVisualizationStep = 100; // to visualize a normal every normalsVisualizationStep
-	float normalsScale = 0.02;			// normals dimension
 
-	pcl::visualization::PCLVisualizer viewer("PCL Viewer");
+	pcl::visualization::PCLVisualizer viewerFPFH("FPFH");
 	pcl::visualization::PCLHistogramVisualizer histViewer;
-	viewer.setBackgroundColor (0.0, 0.0, 0.5);
-	viewer.addCoordinateSystem (0.1);
-	viewer.initCameraParameters ();
-	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
-	viewer.addPointCloud<pcl::PointXYZRGB> (cloud, rgb, "input_cloud");
-	viewer.addPointCloudNormals<pcl::PointXYZRGB, pcl::PointNormal>(cloud, cloud_normals, normalsVisualizationStep, normalsScale, "normals");
+	viewerFPFH.setBackgroundColor (0.0, 0.0, 0.5);
+	viewerFPFH.addCoordinateSystem (0.1);
+	viewerFPFH.initCameraParameters ();
+	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud_out);
+	viewerFPFH.addPointCloud<pcl::PointXYZRGB> (cloud_out, rgb, "input_cloud");
 
 	// Create structure containing the parameters for the callback function
 	struct callbackArgs histCallbackArgs;
 	histCallbackArgs.histViewer = &histViewer;
 	histCallbackArgs.fpfhs = fpfhs;
 
-	// Add point picking callback to viewer (for visualizing feature histograms):
-	viewer.registerPointPickingCallback(pp_callback, static_cast<void*>(&histCallbackArgs));
+	// Add point picking callback to viewerFPFH (for visualizing feature histograms):
+	viewerFPFH.registerPointPickingCallback(pp_callback, static_cast<void*>(&histCallbackArgs));
 
-	// Loop for visualization (so that the visualizers are continuously updated):
+    int normalsVisualizationStep = 100; // to visualize a normal every normalsVisualizationStep
+    float normalsScale = 0.02;			// normals dimension
+    pcl::visualization::PCLVisualizer viewerNormals("Normals");
+    viewerNormals.setBackgroundColor (0.0, 0.0, 0.5);
+    viewerNormals.addCoordinateSystem (0.1);
+    viewerNormals.initCameraParameters ();
+    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2(cloud);
+    viewerNormals.addPointCloud<pcl::PointXYZRGB> (cloud, rgb2, "input_cloud");
+    viewerNormals.addPointCloudNormals<pcl::PointXYZRGB, pcl::PointNormal>(cloud, cloud_normals, normalsVisualizationStep, normalsScale, "normals");
+
+    // Loop for visualization (so that the visualizers are continuously updated):
 	std::cout << "Visualization... "<< std::endl;
-	while (!viewer.wasStopped()) {
-		viewer.spin ();
+	while (!viewerFPFH.wasStopped() && !viewerNormals.wasStopped()) {
+        viewerNormals.spin();
+		viewerFPFH.spin ();
 		histViewer.spin();
 	}
 

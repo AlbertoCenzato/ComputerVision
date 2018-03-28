@@ -6,6 +6,10 @@
 \usepackage{graphicx}
 %\usepackage[colorinlistoftodos]{todonotes}
 
+\usepackage{amsmath}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
 \title{Elaborazione di dati tridimensionali: homework 2}
 
 \author{Alberto Cenzato 1134707}
@@ -37,11 +41,18 @@ La prima esperienza era suddivisa in due esercizi. Nel primo lo scopo era di rim
 
 
 \section{Lab 2} \label{sec:lab2}
+I due esercizi della seconda esperienza puntavano a calcolare le normali ad una superficie definita da una point cloud e ad utilizzare queste normali per il calcolo di features che possano essere caratteristiche e univoche per ogni punto.
 
-Descrizione bla bla
-
-	\subsection{Algortimi utilizzati (teoria)}
-
+	\subsection{Algortimi utilizzati}
+	Il calcolo delle normali è stato fatto attraverso la classe di PCL \verb|NormalEstimationOMP|. \verb|NormalEstimationOMP| per ogni punto $p$ cerca i suoi vicini all'interno di una sfera di raggio $r$, questi vengono usati per stimare il piano $\pi^*$ che meglio approssima la superficie nel punto $p$; cioè si calcola 
+	
+	\begin{equation}
+	\pi^* = \argmin{\sum_{x_i \in kNN(p)}{dist(x_i,\pi)}}
+	\end{equation}
+	
+	\verb|NormalEstimationOMP| utilizza OpenMP per fornire un'implementazione multithread multipiattaforma. \\
+	Vengono poi identificati i keypoint della point cloud, punti che per caratteristiche di posizione e/o colore rispetto ai loro vicini possono essere considerati salienti. Un buon keypoint detector dovrebbe essere invariante per variazioni in traslazione, rotazione, scala e lumiosità, identificando sempre gli stessi keypoint indipendentemente dalle trasformazioni a cui viene sottoposta la point cloud. Per questo esercizio è stato scelto \verb|SIFT3D|, un'estensione di \verb|SIFT| in tre dimensioni, implementato dalla classe PCL \verb|SIFTKeypoint|. \\
+	Una volta identificati i keypoint questi devono poter essere descritti o comparati in qualche modo. A questo scopo si utilizzano dei feature vector, cioè ad ogni keypoint viene assegnato un vettore caratteristico che identifica in modo univoco quel punto. Il contenuto dal vettore dipende dal feature descriptor utilizzato; per questo esercizio è stato usato \verb|Fast Point Feature Histogram|. L'algoritmo considera il keypoint e tutti i suoi vicini entro un raggio $r$; per ogni coppia dell'insieme calcola i tre angoli che definiscono l'orientazione reciproca delle due normali; infine crea un istogramma a partire dalle orientazioni di tutte le coppie. Il feature vector così estratto è invariante per rotazione e traslazione della point cloud.
 
 	\subsection{Considerazioni}
 

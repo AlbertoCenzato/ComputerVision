@@ -69,9 +69,7 @@ pcl::PointCloud<pcl::PointNormal>::Ptr computeNormals(pcl::PointCloud<pcl::Point
 }
 
 
-pcl::PointCloud<pcl::PointWithScale>::Ptr computeSIFT(pcl::PointCloud<pcl::PointNormal>::Ptr cloud_normals,
-                                                      pcl::IndicesPtr &indices)
-{
+pcl::IndicesPtr computeSIFT(pcl::PointCloud<pcl::PointNormal>::Ptr cloud_normals) {
     const float min_scale = 0.01f;
     const int n_octaves = 3;
     const int n_scales_per_octave = 4;
@@ -86,7 +84,7 @@ pcl::PointCloud<pcl::PointWithScale>::Ptr computeSIFT(pcl::PointCloud<pcl::Point
     sift.setInputCloud(cloud_normals);
     sift.compute(*result);
 
-    indices->clear();
+    auto indices = boost::make_shared<std::vector<int>>();
     pcl::KdTreeFLANN<pcl::PointNormal>::Ptr tree(new pcl::KdTreeFLANN<pcl::PointNormal>());
     tree->setInputCloud(cloud_normals);
     for (const auto &point : result->points) {
@@ -100,7 +98,7 @@ pcl::PointCloud<pcl::PointWithScale>::Ptr computeSIFT(pcl::PointCloud<pcl::Point
         indices->push_back(index[0]);
     }
 
-    return result;
+    return indices;
 }
 
 
@@ -132,10 +130,48 @@ pcl::PointCloud<pcl::FPFHSignature33>::Ptr computeFPFH(pcl::PointCloud<pcl::Poin
     return fpfhs;
 }
 
+
+void visualize(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud, pcl::PointCloud<pcl::PointNormal>::Ptr normals,
+               pcl::PointCloud<pcl::PointXYZ>::Ptr cloudFPFH, pcl::PointCloud<pcl::FPFHSignature33>::Ptr fpfhs)
+{
+    pcl::visualization::PCLVisualizer viewerFPFH("FPFH");
+    pcl::visualization::PCLHistogramVisualizer histViewer;
+    viewerFPFH.setBackgroundColor (0.0, 0.0, 0.5);
+    viewerFPFH.addCoordinateSystem (0.1);
+    viewerFPFH.initCameraParameters ();
+    viewerFPFH.addPointCloud<pcl::PointXYZ>(cloudFPFH, "cloudFPFH");
+
+    // Create structure containing the parameters for the callback function
+    struct callbackArgs histCallbackArgs;
+    histCallbackArgs.histViewer = &histViewer;
+    histCallbackArgs.fpfhs = fpfhs;
+
+    // Add point picking callback to viewerFPFH (for visualizing feature histograms):
+    viewerFPFH.registerPointPickingCallback(pp_callback, static_cast<void*>(&histCallbackArgs));
+
+    int normalsVisualizationStep = 100; // to visualize a normal every normalsVisualizationStep
+    float normalsScale = 0.02;			// normals dimension
+    pcl::visualization::PCLVisualizer viewerNormals("Normals");
+    viewerNormals.setBackgroundColor (0.0, 0.0, 0.5);
+    viewerNormals.addCoordinateSystem (0.1);
+    viewerNormals.initCameraParameters ();
+    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2(cloud);
+    viewerNormals.addPointCloud<pcl::PointXYZRGB> (cloud, rgb2, "input_cloud");
+    viewerNormals.addPointCloudNormals<pcl::PointXYZRGB, pcl::PointNormal>(cloud, normals, normalsVisualizationStep, normalsScale, "normals");
+
+    // Loop for visualization (so that the visualizers are continuously updated):
+    std::cout << "Visualization... "<< std::endl;
+    while (!viewerFPFH.wasStopped() && !viewerNormals.wasStopped()) {
+        viewerNormals.spin();
+        viewerFPFH.spin ();
+        histViewer.spin();
+    }
+}
+
 int main (int argc, char** argv) {
 	// Variables declaration:
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-	pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal> ());
+	//pcl::PointCloud<pcl::Normal>::Ptr normals(new pcl::PointCloud<pcl::Normal> ());
 
 	// Load point cloud from .pcd file:
 	if (pcl::io::loadPCDFile<pcl::PointXYZRGB> ("../dataset_lab2/minimouse1_segmented.pcd", *cloud) == -1) {
@@ -150,51 +186,20 @@ int main (int argc, char** argv) {
 	std::vector<int> indices;
 	pcl::removeNaNFromPointCloud(*cloud, *cloud, indices);
 
-    auto cloud_normals = computeNormals(cloud);
+    auto normals = computeNormals(cloud);
 
-    auto keypointIndices = boost::make_shared<std::vector<int>>();
-    auto keyPoints = computeSIFT(cloud_normals, keypointIndices);
+    auto keypointIndices = computeSIFT(normals);
 
-    auto fpfhs = computeFPFH(cloud, cloud_normals, keypointIndices);
+    auto fpfhs = computeFPFH(cloud, normals, keypointIndices);
 
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZRGB>);
-    for (auto index : *keypointIndices)
-        cloud_out ->push_back(cloud->points[index]);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloudFPFHS (new pcl::PointCloud<pcl::PointXYZ>);
+    for (auto index : *keypointIndices) {
+        const auto &point = cloud->points[index];
+        cloudFPFHS->push_back(pcl::PointXYZ(point.x, point.y, point.z));
+    }
 
 
-	pcl::visualization::PCLVisualizer viewerFPFH("FPFH");
-	pcl::visualization::PCLHistogramVisualizer histViewer;
-	viewerFPFH.setBackgroundColor (0.0, 0.0, 0.5);
-	viewerFPFH.addCoordinateSystem (0.1);
-	viewerFPFH.initCameraParameters ();
-	pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud_out);
-	viewerFPFH.addPointCloud<pcl::PointXYZRGB> (cloud_out, rgb, "input_cloud");
-
-	// Create structure containing the parameters for the callback function
-	struct callbackArgs histCallbackArgs;
-	histCallbackArgs.histViewer = &histViewer;
-	histCallbackArgs.fpfhs = fpfhs;
-
-	// Add point picking callback to viewerFPFH (for visualizing feature histograms):
-	viewerFPFH.registerPointPickingCallback(pp_callback, static_cast<void*>(&histCallbackArgs));
-
-    int normalsVisualizationStep = 100; // to visualize a normal every normalsVisualizationStep
-    float normalsScale = 0.02;			// normals dimension
-    pcl::visualization::PCLVisualizer viewerNormals("Normals");
-    viewerNormals.setBackgroundColor (0.0, 0.0, 0.5);
-    viewerNormals.addCoordinateSystem (0.1);
-    viewerNormals.initCameraParameters ();
-    pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb2(cloud);
-    viewerNormals.addPointCloud<pcl::PointXYZRGB> (cloud, rgb2, "input_cloud");
-    viewerNormals.addPointCloudNormals<pcl::PointXYZRGB, pcl::PointNormal>(cloud, cloud_normals, normalsVisualizationStep, normalsScale, "normals");
-
-    // Loop for visualization (so that the visualizers are continuously updated):
-	std::cout << "Visualization... "<< std::endl;
-	while (!viewerFPFH.wasStopped() && !viewerNormals.wasStopped()) {
-        viewerNormals.spin();
-		viewerFPFH.spin ();
-		histViewer.spin();
-	}
+	visualize(cloud, normals, cloudFPFHS, fpfhs);
 
 	return 0;
 }

@@ -2,8 +2,8 @@
 // Created by alberto on 21/03/18.
 //
 
-#ifndef CV_HW2_LAB4_PLANE_SEGMENTER_H
-#define CV_HW2_LAB4_PLANE_SEGMENTER_H
+#ifndef CV_HW2_LAB3_PLANE_SEGMENTER_H
+#define CV_HW2_LAB3_PLANE_SEGMENTER_H
 
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
@@ -14,7 +14,7 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/visualization/pcl_visualizer.h>
 
-namespace lab4 {
+namespace lab3 {
 
     template<typename PointT>
     class PlaneSegmenter {
@@ -137,6 +137,6 @@ namespace lab4 {
 
     };
 
-} // namespace lab4
+} // namespace lab3
 
-#endif //CV_HW2_LAB4_PLANE_SEGMENTER_H
+#endif //CV_HW2_LAB3_PLANE_SEGMENTER_H

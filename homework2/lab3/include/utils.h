@@ -66,7 +66,7 @@ namespace lab3 {
                 // \note enable this for large datasets
                 if (downsample) {
                     pcl::VoxelGrid<PointT> grid;
-                    grid.setLeafSize(0.05, 0.05, 0.05);
+                    grid.setLeafSize(0.01, 0.01, 0.01);
                     grid.setInputCloud(m.cloud);
                     grid.filter(*m.cloud);
                 }

@@ -11,6 +11,7 @@
 
 #include "visualizer.h"
 #include "utils.h"
+#include "plane_segmenter.h"
 
 using std::vector;
 using pcl::visualization::PCLVisualizer;
@@ -31,6 +32,7 @@ Cloud::Ptr method2(const vector<Cloud::Ptr> &data, lab3::Visualizer &visualizer)
 
 pcl::PointCloud<pcl::PointNormal>::Ptr computeNormals(Cloud::ConstPtr cloud);
 
+void visualize(Cloud::Ptr cloud1, Cloud::Ptr cloud2);
 
 int main(int argc, char** argv) {
 
@@ -46,8 +48,14 @@ int main(int argc, char** argv) {
     std::cout << std::endl;
 
     std::vector<Cloud::Ptr> clouds;
-    for (const auto &c : data)
-        clouds.push_back(c.cloud);
+    lab3::PlaneSegmenter<Cloud::PointType> seg;
+    for (const auto &c : data) {
+        seg.setInputCloud(c.cloud);
+        seg.setAxisAndTolerance({0.f,0.5f,0.5f}, 30.0);
+        seg.setDistanceThreshold(0.05);
+        seg.estimatePlane();
+        clouds.push_back(seg.getSegmentedCloud());
+    }
 
     lab3::Visualizer visualizer("Comparison between two registration methods");
 
@@ -63,7 +71,7 @@ int main(int argc, char** argv) {
 
     auto cloud_m2 = method2(clouds, visualizer);
 
-    //visualize(cloud_m1, cloud_m2);
+    visualize(cloud_m1, cloud_m2);
 
     return 0;
 }
@@ -194,4 +202,19 @@ CloudNormal::Ptr computeNormals(Cloud::ConstPtr cloud) {
     std::cout << "done." << std::endl;
 
     return cloud_normals;
+}
+
+
+void visualize(Cloud::Ptr cloud1, Cloud::Ptr cloud2) {
+    pcl::visualization::PCLVisualizer viewer("Final result");
+    int vp_left, vp_right;
+    viewer.createViewPort(0,0,0.5,1, vp_left);
+    viewer.createViewPort(0.5,0,1,1, vp_right);
+
+    pcl::visualization::PointCloudColorHandlerRGBField<Cloud::PointType> rgb1(cloud1);
+    viewer.addPointCloud(cloud1, rgb1, "cloud_1", vp_left);
+    pcl::visualization::PointCloudColorHandlerRGBField<Cloud::PointType> rgb2(cloud2);
+    viewer.addPointCloud(cloud2, rgb2, "cloud_2", vp_right);
+
+    viewer.spin();
 }

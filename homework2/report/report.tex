@@ -141,9 +141,19 @@ La terza esperienza aveva lo scopo di registrare tra loro diverse point cloud de
 
 
 \section{Lab 4} \label{sec:lab4}
-Descrizione bla bla
+La quarta esperienza richiedeva di mettere insieme le tecniche aquisite nelle tre precedenti per registrare tra loro delle point cloud di un robot Nao riprese in scene di media complessità. In preparazione a questo è stato svolto un esercizio che richiedeva di modificare un people detector preesitente in modo che non richiedesse input da parte dell'utente. Il people detector, per identificare correttamente le persone, deve individuare come prima cosa il pavimento; è stato quindi aggiunto al codice una stima automatica del ground plane.\\
+La registrazione del Nao ha richiesto più passaggi:
+\begin{itemize}
+	\item stima e rimozione del ground plane;
+	\item rimozione dello sfondo;
+	\item identificazione dei keypoint;
+	\item estrazione dei descrittori;
+	\item stima delle corrispondenze;
+	\item registrazione;
+\end{itemize}
 
-	\subsection{Algortimi utilizzati (teoria)}
+
+	\subsection{Algortimi utilizzati}
 
 
 	\subsection{Considerazioni}

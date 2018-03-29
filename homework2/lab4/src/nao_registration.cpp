@@ -28,7 +28,6 @@ int main (int argc, char** argv) {
     lab4::SimpleViewer viewer("Nao");
 	std::vector<CloudT::ConstPtr> naoClouds;
 
-
 	for (unsigned int i = 1; i <= 6; i++) {
 		CloudT::Ptr cloud (new CloudT);
 
@@ -40,6 +39,9 @@ int main (int argc, char** argv) {
 			PCL_ERROR ("Couldn't read the pcd file \n");
 			return (-1);
 		}
+
+        std::vector<int> nanIndex;
+		pcl::removeNaNFromPointCloud<CloudT::PointType>(*cloud, *cloud, nanIndex);
 
 		viewer.visualize(cloud);
 

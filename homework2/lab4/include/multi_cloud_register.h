@@ -30,7 +30,7 @@ namespace lab4 {
         using PointCloudTPtr = typename PointCloudT::Ptr;
         using PointCloudTConstPtr = typename PointCloudT::ConstPtr;
 
-        MultiCloudRegister() : registeredCloud(new PointCloudT) { }
+        MultiCloudRegister() : registeredCloud(new PointCloudT), keypoints(new pcl::PointCloud<pcl::PFHRGBSignature250>) { }
 
         void clearRegisteredCloud()
         {
@@ -78,14 +78,15 @@ namespace lab4 {
                 viewer.addPointCloud<PointT>(registeredCloud, rgbTgt1, "target_cloud");
                 viewer.spin();
 
-                registeredClouds.push_back(registered);
-                //*registeredCloud += *registered;
+                //registeredClouds.push_back(registered);
+                *registeredCloud += *registered;
             }
 
-
+/*
             for (const auto &registered : registeredClouds) {
                 *registeredCloud += *registered;
             }
+            */
 
             cloudsToRegister.clear();
 
@@ -112,26 +113,29 @@ namespace lab4 {
     private:
         PointCloudTPtr registeredCloud;
         std::vector<PointCloudTConstPtr> cloudsToRegister;
+        pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr keypoints;
 
         void correspondenceEstimation(PointCloudTConstPtr source, PointCloudTConstPtr target,
-                                      Eigen::Matrix4f &transformation) const
+                                      Eigen::Matrix4f &transformation)
         {
             auto sourceKeypoints = extractPFHRGBDescriptors<PointT>(source);
-            auto targetKeypoints = extractPFHRGBDescriptors<PointT>(target);
+            if (keypoints->empty())
+                keypoints = extractPFHRGBDescriptors<PointT>(target);
 
             pcl::registration::CorrespondenceEstimation<pcl::PFHRGBSignature250, pcl::PFHRGBSignature250> est;
             pcl::CorrespondencesPtr corr(new pcl::Correspondences);
 
             est.setInputSource(sourceKeypoints);
-            est.setInputTarget(sourceKeypoints);
+            est.setInputTarget(keypoints);
             est.determineReciprocalCorrespondences(*corr);
+
 
             pcl::registration::CorrespondenceRejectorSampleConsensus<PointT> rejector;
 
             rejector.setInputSource(source);
             rejector.setInputTarget(target);
-            rejector.setInlierThreshold(0.07); //0.03);
-            rejector.setMaximumIterations(500);
+            rejector.setInlierThreshold(0.03); //0.03);
+            rejector.setMaximumIterations(30);
             rejector.setInputCorrespondences(corr);
 
             pcl::Correspondences inliers;
@@ -149,6 +153,8 @@ namespace lab4 {
             viewer.spin();
 
             transformation = rejector.getBestTransformation();
+
+            *keypoints += *sourceKeypoints;
         }
 
 

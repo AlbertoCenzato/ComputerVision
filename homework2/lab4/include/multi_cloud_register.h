@@ -30,7 +30,7 @@ namespace lab4 {
         using PointCloudTPtr = typename PointCloudT::Ptr;
         using PointCloudTConstPtr = typename PointCloudT::ConstPtr;
 
-        MultiCloudRegister() : registeredCloud(new PointCloudT), keypoints(new pcl::PointCloud<pcl::PFHRGBSignature250>) { }
+        MultiCloudRegister() : registeredCloud(new PointCloudT), keypoints(new pcl::PointCloud<pcl::FPFHSignature33>) { }
 
         void clearRegisteredCloud()
         {
@@ -113,16 +113,16 @@ namespace lab4 {
     private:
         PointCloudTPtr registeredCloud;
         std::vector<PointCloudTConstPtr> cloudsToRegister;
-        pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr keypoints;
+        pcl::PointCloud<pcl::FPFHSignature33>::Ptr keypoints;
 
         void correspondenceEstimation(PointCloudTConstPtr source, PointCloudTConstPtr target,
                                       Eigen::Matrix4f &transformation)
         {
-            auto sourceKeypoints = extractPFHRGBDescriptors<PointT>(source);
+            auto sourceKeypoints = extractFPFHDescriptors<PointT>(source);
             if (keypoints->empty())
-                keypoints = extractPFHRGBDescriptors<PointT>(target);
+                keypoints = extractFPFHDescriptors<PointT>(target);
 
-            pcl::registration::CorrespondenceEstimation<pcl::PFHRGBSignature250, pcl::PFHRGBSignature250> est;
+            pcl::registration::CorrespondenceEstimation<pcl::FPFHSignature33, pcl::FPFHSignature33> est;
             pcl::CorrespondencesPtr corr(new pcl::Correspondences);
 
             est.setInputSource(sourceKeypoints);

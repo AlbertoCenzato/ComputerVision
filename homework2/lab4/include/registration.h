@@ -94,7 +94,8 @@ namespace lab4 {
         pcl::FPFHEstimationOMP<PointT, pcl::PointNormal, pcl::FPFHSignature33> fpfh;
         fpfh.setInputCloud(cloud);
         fpfh.setInputNormals(cloud_normals);
-        fpfh.setIndices(indices);
+        if (indices != nullptr && indices->size() > 0)
+            fpfh.setIndices(indices);
         // alternatively, if cloud is of tpe PointNormal, do fpfh.setInputNormals (cloud);
 
         // Output datasets
@@ -173,8 +174,8 @@ namespace lab4 {
     {
         auto cloud_normals = computeNormals<PointT>(cloud);
 
-        auto indices = computeSIFT(cloud_normals);
-
+        //auto indices = computeSIFT(cloud_normals);
+        pcl::IndicesPtr indices;
         return computeFPFH<PointT>(cloud, cloud_normals, indices);
     }
 

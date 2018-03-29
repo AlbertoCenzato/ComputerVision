@@ -87,26 +87,29 @@ int main (int argc, char** argv)
         return print_help();
 
     /// Dataset Parameters:
-    std::string filename = "../dataset_lab4/people/five_people";
+    std::string filename = "../dataset_lab4/people/five_people.pcd";
     std::string svm_filename = "../dataset_lab4/trainedLinearSVMForPeopleDetectionWithHOG.yaml";
     float min_confidence = -1.5;
     float min_height = 1.3;
     float max_height = 2.3;
-    float voxel_size = 0.06;
+    float voxel_size = 0.02;
     float sampling_factor = 1;
     Eigen::Matrix3f rgb_intrinsics_matrix;
-    rgb_intrinsics_matrix << 525, 0.0, 319.5, 0.0, 525, 239.5, 0.0, 0.0, 1.0; // Kinect RGB camera intrinsics
+    rgb_intrinsics_matrix << 525, 0.0, 319.5,
+                             0.0, 525, 239.5,
+                             0.0, 0.0, 1.0; // Kinect RGB camera intrinsics
 
     // Read if some parameters are passed from command line:
-    pcl::console::parse_argument (argc, argv, "--svm", svm_filename);
-    pcl::console::parse_argument (argc, argv, "--conf", min_confidence);
-    pcl::console::parse_argument (argc, argv, "--min_h", min_height);
-    pcl::console::parse_argument (argc, argv, "--max_h", max_height);
-    pcl::console::parse_argument (argc, argv, "--sample", sampling_factor);
+    pcl::console::parse_argument(argc, argv, "--file", filename);
+    pcl::console::parse_argument(argc, argv, "--svm", svm_filename);
+    pcl::console::parse_argument(argc, argv, "--conf", min_confidence);
+    pcl::console::parse_argument(argc, argv, "--min_h", min_height);
+    pcl::console::parse_argument(argc, argv, "--max_h", max_height);
+    pcl::console::parse_argument(argc, argv, "--sample", sampling_factor);
 
     // Read Kinect data:
     PointCloudT::Ptr cloud = PointCloudT::Ptr (new PointCloudT);
-    if (pcl::io::loadPCDFile(filename + ".pcd", *cloud) < 0)
+    if (pcl::io::loadPCDFile(filename, *cloud) < 0)
     {
         cerr << "Failed to read test file `five_people.pcd`." << endl;
         return (-1);
@@ -121,7 +124,7 @@ int main (int argc, char** argv)
     people_detector.setVoxelSize(voxel_size);                        // set the voxel size
     people_detector.setIntrinsics(rgb_intrinsics_matrix);            // set RGB camera intrinsic parameters
     people_detector.setClassifier(person_classifier);                // set person classifier
-    people_detector.setPersonClusterLimits(min_height, max_height, 0.1f, 0.8f);         // set person classifier
+    people_detector.setPersonClusterLimits(min_height, max_height, 0.1f, 1.6f);         // set person classifier
     people_detector.setSamplingFactor(sampling_factor);              // set a downsampling factor to the point cloud (for increasing speed)
 //  people_detector.setSensorPortraitOrientation(true);              // set sensor orientation to vertical
 
@@ -132,6 +135,7 @@ int main (int argc, char** argv)
 
     lab4::PlaneSegmenter<PointT> seg;
     seg.setAxisAndTolerance({0.f,1.f,0.f});
+    seg.setDistanceThreshold(0.1);
     seg.estimatePlane(cloud);
     auto groundCoeffs = seg.getPlaneCoefficients();
     auto segmentedCloud = seg.getSegmentedCloud();

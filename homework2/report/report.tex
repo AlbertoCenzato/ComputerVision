@@ -155,20 +155,46 @@ Inizialmente sono stati fatti vari tentativi estraendo diversi descrittori (\ver
 	\subsection{Algortimi utilizzati} \label{sec:lab4_alg}
 	La stima del ground plane, come per l'esperienza 3, è stata fatta fittando sulla point cloud un piano con \verb|RANSAC|. L'algoritmo campiona dei punti dalla cloud e stima i coefficienti del piano che meglio approssima quei punti; poi considera come \textit{inliers} tutti i punti a distanza minore di $\epsilon$ dal piano trovato, dove $\epsilon$ è una tolleranza data. Gli \textit{inliers} vengono poi utilizzati per effettuare un secondo fit. Infine si calcola l'errore. Questi passaggi vengono ripetuti per $N$ iterazioni e viene tenuto il modello con l'errore minore. Ovviamente questo algoritmo non garantisce di arrivare ad una soluzione, ma quando il numero di iterazioni è sufficientemente elevato ottiene una buona precisione, inoltre è molto robusto rispetto a rumore e outliers. \\
 	Una volta rimosso il pavimento è stato necessario rimuovere anche lo sfondo per isolare il Nao. L'operazione è stata piuttosto semplice da implementare utilizzando la classe \verb|EuclideanClusterExtraction| che individua i cluster presenti all'interno della point cloud usando una metrica euclidea. Di questi è stato tenuto il cluster con centroide $c^*$ più vicino alla camera. \\
+	Le corrispondenze tra i punti delle point cloud da registrare sono state stimate utilizzando dei descrittori \verb|FPFH| (si veda \ref{sec:lab2_alg}). E' stato provato anche \verb|PFHRGB| che tiene conto anche del colore, ma avendo ossevato un miglioramento minimo e un dilatarsi dei tempi di calcolo si è infine scelto di utilizzare \verb|FPFH|.
 	
-	\begin{itemize}
-		\item fpfh
-	\end{itemize}
-
+	\begin{table}[]
+		\centering
+		\caption{Parametri per l'algoritmo di ground plane estimation}
+		\label{tab:lab4_ground_plane}
+		\begin{tabular}{|l|l|l|}
+			\hline
+			vettore ortogonale al piano     & angle\_tolerance         & distance\_threshold        \\ \hline
+			\multicolumn{1}{|c|}{$(0, 1, 0)$} & \multicolumn{1}{c|}{$30^\circ$} & \multicolumn{1}{c|}{$0.1$cm} \\ \hline
+		\end{tabular}
+	\end{table}
+	
+	\begin{table}[]
+		\centering
+		\caption{Parametri per l'algoritmo di people detection}
+		\label{tab:lab4_people_detector}
+		\begin{tabular}{|l|l|l|l|l|l|}
+			\hline
+			min\_height             & max\_height             & min\_width              & max\_width              & voxel\_size              & sampling\_factor      \\ \hline
+			\multicolumn{1}{|c|}{$1.3$m} & \multicolumn{1}{|c|}{$2.3$m} & \multicolumn{1}{|c|}{$0.1$m} & \multicolumn{1}{|c|}{$1.6$m} & \multicolumn{1}{|c|}{$0.02$m} & \multicolumn{1}{|c|}{$1$} \\ \hline
+		\end{tabular}
+	\end{table}
 
 	\subsection{Considerazioni} \label{sec:lab4_disc}
-	
+	Il peple detector è stato piuttosto facile da modificare per ottenere una stima del ground plane che non richiedesses input da parte dell'utente. La maggior parte del tempo è stata spesa nel tarare i parametri di fit del pavimento (orientazione del vettore ortogonale al piano, angolo di tolleranza del piano e tolleranza per gli inliers) e in quelli per il people detector vero e proprio. Con i valori riportati in tabella \ref{tab:lab4_ground_plane} e tabella \ref{tab:lab4_people_detector} sono state identificate correttamente tutte le persone presenti nel dataset fornito ad esclusione della point cloud 2 probabilmente perché il corpo risulta parzialmente tagliato. \\
 	
 	\begin{figure}
 		\centering
 		\includegraphics[width=1\textwidth]{images/lab4_nao_correspondences.png}
 		\caption{\label{fig:lab4_nao_correspondences}}
 	\end{figure}
+	
+	L'esercizio finale è stato il più laborioso nonostante si trattasse per lo più di riutilizzare codice sviluppato nel corso degli esercizi precedenti. La ground plane estimation e il clustering per rimovere lo sfondo non hanno presentato problemi. La registrazione ha richiesto invece molti tentativi con diversi algoritmi e modifiche ai parametri. Partendo dall'esperienza due (si veda \ref{sec:lab2}) sono stati inizialmente utilizzati gli stessi algoritmi anche per la registrazione del Nao: keypoint detection con \verb|SIFT3D|, estrazione dei descrittori \verb|FPFH| dai keypoint, calcolo delle corrispondenze, trasformazione approssimata e registrazione finale con \verb|ICP|, seguendo l'algoritmo \ref{alg:registration1} per l'ordine di registrazione delle point cloud. Questa strategia non ha però portato i risultati sperati. \verb|SIFT3D| infatti identificava spesso le dita del robot come punti salienti dell'immagine; si otteneva così negli step successivi dell'algoritmo una registrazione errata rispetto ai tre gradi di libertà rotazionale. \\
+	Cambiando strategia si è deciso di non calcolare i descrittori solamente sui punti salienti identificati da \verb|SIFT3D| ma su tutta la point cloud ottenendo così molte più features per il calcolo delle corrispondenze. La scelta si è rivelata vincente, ottenendo delle registrazioni molto precise. In figura \ref{fig:lab4_nao_correspondences} si può vedere un esempio delle corrispondenze identificate, mentre in figura \ref{fig:lab4_nao_registered} si può vedere il risultato finale della registrazione.
+	
+	
+	
+	
+	
 
 	\begin{figure}
 		\centering
